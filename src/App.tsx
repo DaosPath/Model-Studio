@@ -384,43 +384,92 @@ function MarkdownMessage({
 
 const DEVELOPER_SYSTEM = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.
 
-Puedes navegar e inspeccionar el espacio de trabajo local usando las siguientes herramientas (escríbelas en una línea nueva exactamente como se describen):
+Puedes navegar, explorar, escribir y modificar el espacio de trabajo local usando las siguientes herramientas (escríbelas exactamente en una línea nueva):
+
 TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
 TOOL: cd <ruta_relativa_o_absoluta>
 TOOL: run_command <comando_de_consola>
 
-Por ejemplo, para entrar en la carpeta 'src', escribe exactamente:
-TOOL: cd src
-Y espera a recibir la respuesta (OBSERVATION) antes de continuar.`;
+TOOL: write_file <ruta_relativa_o_absoluta>
+[Seguido inmediatamente de un bloque de código Markdown con el contenido del archivo]
+
+TOOL: patch_file <ruta_relativa_o_absoluta>
+[Seguido de un bloque diff Markdown con marcas SEARCH/REPLACE exactas para editar archivos sin reescribirlos por completo:
+<<<<<<< SEARCH
+[código existente exacto]
+=======
+[código nuevo reemplazante]
+>>>>>>> REPLACE
+]
+
+TOOL: run_python
+[Seguido de un bloque de código python para ejecutar cálculos o generar scripts. Si generas imágenes (gráficas .png), el sistema las renderizará de forma automática en el chat]
+
+Ejemplo para crear un archivo:
+TOOL: write_file src/utils.js
+\`\`\`javascript
+const add = (a, b) => a + b;
+\`\`\`
+
+Ejemplo para editar un archivo:
+TOOL: patch_file src/utils.js
+\`\`\`diff
+<<<<<<< SEARCH
+const add = (a, b) => a + b;
+=======
+const add = (a, b) => a + b;
+const sub = (a, b) => a - b;
+>>>>>>> REPLACE
+\`\`\`
+
+Espera siempre la respuesta (OBSERVATION) antes de emitir tu siguiente paso o razonamiento.`;
 
 const RESEARCHER_SYSTEM = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.
 
-Puedes navegar e inspeccionar el espacio de trabajo local usando las siguientes herramientas (escríbelas en una línea nueva exactamente como se describen):
+Puedes navegar e investigar el espacio de trabajo local usando las siguientes herramientas (escríbelas exactamente en una línea nueva):
 TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
 TOOL: cd <ruta_relativa_o_absoluta>
 TOOL: run_command <comando_de_consola>
+TOOL: run_python
+[Seguido de un bloque de código python para procesar datos, hacer análisis estadísticos o graficar. Los gráficos PNG generados aparecerán automáticamente en el chat]
 
-Por ejemplo, para entrar en la carpeta 'docs', escribe exactamente:
-TOOL: cd docs
-Y espera a recibir la respuesta (OBSERVATION) antes de continuar.`;
+Ejemplo para correr python:
+TOOL: run_python
+\`\`\`python
+import pandas as pd
+print("Análisis listo")
+\`\`\`
 
-const FILE_SPECIALIST_SYSTEM = `Eres un Especialista de Archivos (File Specialist Mode) con acceso al sistema de archivos local a través de herramientas especiales.
-Puedes explorar, navegar y leer los archivos usando las siguientes herramientas. Para usarlas, debes escribir exactamente el comando en una línea nueva, sin texto antes ni después en esa misma línea:
+Espera siempre la respuesta (OBSERVATION) antes de continuar.`;
+
+const FILE_SPECIALIST_SYSTEM = `Eres un Especialista de Archivos (File Specialist Mode) con acceso al sistema de archivos local. Puedes explorar, crear y modificar archivos utilizando las herramientas del sistema:
 
 TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
 TOOL: cd <ruta_relativa_o_absoluta>
 TOOL: run_command <comando_de_consola>
+TOOL: write_file <ruta_relativa_o_absoluta>
+TOOL: patch_file <ruta_relativa_o_absoluta>
 
-Por ejemplo, si necesitas entrar en 'src' y luego ver 'main.js', escribe primero:
-TOOL: cd src
+Formato para write_file:
+TOOL: write_file ruta/archivo.txt
+\`\`\`text
+contenido
+\`\`\`
 
-Y en el siguiente paso, cuando veas la OBSERVATION confirmando el cambio, escribe:
-TOOL: read_file main.js
+Formato para patch_file:
+TOOL: patch_file ruta/archivo.txt
+\`\`\`diff
+<<<<<<< SEARCH
+existente
+=======
+reemplazo
+>>>>>>> REPLACE
+\`\`\`
 
-No inventes el contenido de los archivos. Analiza el contenido real devuelto por las herramientas.`;
+No inventes el contenido de los archivos. Analiza el contenido real devuelto por las herramientas y espera la respuesta (OBSERVATION) antes de continuar.`;
 
 function SuperAgentPanel({
   steps,
@@ -958,6 +1007,167 @@ function ImageStudio({
   );
 }
 
+interface FileNode {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  children?: FileNode[] | null;
+}
+
+interface FileExplorerProps {
+  rootPath: string | null;
+  onSelectFolder: (path: string) => void;
+}
+
+function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
+  const [nodes, setNodes] = useState<FileNode[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [viewingFile, setViewingFile] = useState<{ path: string; name: string; content: string } | null>(null);
+
+  const fetchTree = async () => {
+    if (!rootPath) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const tree = await invoke<FileNode[]>("get_directory_tree", { rootPath });
+      setNodes(tree);
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo cargar el explorador de archivos.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTree();
+  }, [rootPath]);
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  const openFile = async (path: string, name: string) => {
+    try {
+      const content = await invoke<string>("read_local_file", { path });
+      setViewingFile({ path, name, content });
+    } catch (e) {
+      alert("Error al leer el archivo: " + e);
+    }
+  };
+
+  const renderNode = (node: FileNode, depth = 0) => {
+    const isExpanded = !!expandedFolders[node.path];
+    const indent = depth * 12;
+
+    if (node.is_dir) {
+      return (
+        <div key={node.path} className="file-node-container">
+          <div 
+            className="file-node folder" 
+            style={{ paddingLeft: `${indent + 8}px` }}
+          >
+            <button 
+              type="button"
+              className="folder-toggle-btn"
+              onClick={() => toggleFolder(node.path)}
+            >
+              {isExpanded ? "▼" : "▶"}
+            </button>
+            <span className="node-icon">📁</span>
+            <span 
+              className="node-name"
+              onClick={() => toggleFolder(node.path)}
+              title="Click para expandir"
+            >
+              {node.name}
+            </span>
+            <button
+              type="button"
+              className="folder-cd-btn"
+              onClick={() => onSelectFolder(node.path)}
+              title="Establecer como directorio de trabajo (cd)"
+            >
+              cd
+            </button>
+          </div>
+          {isExpanded && node.children && (
+            <div className="folder-children">
+              {node.children.map(child => renderNode(child, depth + 1))}
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      return (
+        <div 
+          key={node.path} 
+          className="file-node file" 
+          style={{ paddingLeft: `${indent + 24}px` }}
+          onClick={() => openFile(node.path, node.name)}
+          title="Click para ver contenido"
+        >
+          <span className="node-icon">📄</span>
+          <span className="node-name">{node.name}</span>
+        </div>
+      );
+    }
+  };
+
+  if (!rootPath) {
+    return (
+      <div className="file-explorer-empty">
+        <p>Selecciona un proyecto activo para explorar sus archivos.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="file-explorer">
+      <div className="file-explorer-header">
+        <h3>Explorador de Archivos</h3>
+        <button 
+          type="button" 
+          onClick={fetchTree} 
+          className="refresh-explorer-btn"
+          disabled={loading}
+        >
+          {loading ? "Cargando..." : "↻"}
+        </button>
+      </div>
+      {error && <div className="file-explorer-error">{error}</div>}
+      <div className="file-tree-container">
+        {nodes.length === 0 && !loading && (
+          <p className="no-files-msg">Carpeta vacía o sin archivos legibles.</p>
+        )}
+        {nodes.map(node => renderNode(node))}
+      </div>
+
+      {viewingFile && (
+        <div className="file-viewer-modal">
+          <div className="file-viewer-content">
+            <div className="file-viewer-header">
+              <h4>{viewingFile.name}</h4>
+              <button 
+                type="button"
+                className="close-modal-btn"
+                onClick={() => setViewingFile(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <pre className="file-viewer-pre">
+              <code>{viewingFile.content}</code>
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function resolvePath(userPath: string, projectCwd: string) {
   if (!projectCwd) return userPath;
   const isAbsolute = /^[a-zA-Z]:\\|^[a-zA-Z]:\/|^\/|^\\\\/.test(userPath);
@@ -1026,6 +1236,18 @@ function App() {
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [editingConversationId, setEditingConversationId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
+
+  const [activeTab, setActiveTab] = useState<"chats" | "files">("chats");
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalActiveId, setTerminalActiveId] = useState<string | null>(null);
+  const terminalBodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (terminalBodyRef.current) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
+    }
+  }, [terminalLogs]);
 
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
@@ -1107,6 +1329,19 @@ function App() {
       setCustomTools(list);
     } catch (e) {
       console.error("Error loading custom tools:", e);
+    }
+  }
+
+  async function updateWorkDir(path: string) {
+    if (!activeConversationId) return;
+    try {
+      await invoke("db_update_conversation_directory", { conversationId: activeConversationId, directory: path });
+      setConversations(current =>
+        current.map(c => c.id === activeConversationId ? { ...c, current_directory: path } : c)
+      );
+      setLogs(current => [...current, `[sistema] Directorio de trabajo del agente cambiado a: ${path}`]);
+    } catch (e) {
+      console.error("Error al actualizar el directorio de trabajo:", e);
     }
   }
 
@@ -1437,6 +1672,10 @@ function App() {
           const matchListDir = trimmed.match(/^TOOL:\s*list_dir\s+(.+)$/i);
           const matchRunCommand = trimmed.match(/^TOOL:\s*run_command\s+(.+)$/i);
           const matchCd = trimmed.match(/^TOOL:\s*cd\s+(.+)$/i) || trimmed.match(/^TOOL:\s*change_directory\s+(.+)$/i);
+          const matchWriteFile = trimmed.match(/^TOOL:\s*write_file\s+(.+)$/i);
+          const matchPatchFile = trimmed.match(/^TOOL:\s*patch_file\s+(.+)$/i);
+          const matchRunPython = trimmed.match(/^TOOL:\s*run_python/i);
+
           if (matchReadFile) {
             pendingToolCall.current = { type: "read_file", argument: matchReadFile[1].trim() };
           } else if (matchListDir) {
@@ -1445,6 +1684,12 @@ function App() {
             pendingToolCall.current = { type: "run_command", argument: matchRunCommand[1].trim() };
           } else if (matchCd) {
             pendingToolCall.current = { type: "cd", argument: matchCd[1].trim() };
+          } else if (matchWriteFile) {
+            pendingToolCall.current = { type: "write_file", argument: matchWriteFile[1].trim() };
+          } else if (matchPatchFile) {
+            pendingToolCall.current = { type: "patch_file", argument: matchPatchFile[1].trim() };
+          } else if (matchRunPython) {
+            pendingToolCall.current = { type: "run_python", argument: "" };
           } else {
             const matchCustom = trimmed.match(/^TOOL:\s*([a-zA-Z0-9_-]+)(?:\s+(.+))?$/i);
             if (matchCustom) {
@@ -1619,8 +1864,95 @@ function App() {
             resultStr = `\nOBSERVATION (Archivos en ${tool.argument}):\n${list.join("\n")}`;
           } else if (tool.type === "run_command") {
             const commandCwd = cwd || ".";
-            const output = await invoke<string>("run_local_command", { command: tool.argument, cwd: commandCwd });
-            resultStr = `\nOBSERVATION (Resultado del comando):\n\`\`\`\n${output}\n\`\`\``;
+            const commandId = `cmd_${Date.now()}`;
+            setTerminalActiveId(commandId);
+            setTerminalOpen(true);
+            setTerminalLogs(curr => [...curr, `>>> Ejecutando comando asíncrono: ${tool.argument} en ${commandCwd}`]);
+            
+            let outputBuffer = "";
+            const lineUnlisten = await listen<{ command_id: string; line: string }>("terminal-line", ({ payload }) => {
+              if (payload.command_id === commandId) {
+                outputBuffer += payload.line + "\n";
+              }
+            });
+
+            await invoke("run_command_async", { commandId, command: tool.argument, cwd: commandCwd });
+
+            await new Promise<void>((resolve) => {
+              const finishedUnlisten = listen<{ command_id: string; exit_code: number | null }>("terminal-finished", ({ payload }) => {
+                if (payload.command_id === commandId) {
+                  finishedUnlisten.then(dispose => dispose());
+                  lineUnlisten();
+                  resolve();
+                }
+              });
+            });
+
+            resultStr = `\nOBSERVATION (Resultado del comando):\n\`\`\`\n${outputBuffer || "(Sin salida)"}\n\`\`\``;
+          } else if (tool.type === "write_file") {
+            const regex = /TOOL:\s*write_file\s+([^\n\r]+)(?:\r?\n)*```[a-zA-Z]*\r?\n([\s\S]*?)(?:\r?\n```|$)/i;
+            const match = target.content.match(regex);
+            if (match) {
+              const file_path = match[1].trim();
+              const code = match[2];
+              const resolvedPath = resolvePath(file_path, cwd);
+              await invoke("write_local_file", { path: resolvedPath, content: code });
+              resultStr = `\nOBSERVATION: Archivo "${file_path}" creado y guardado con éxito.`;
+            } else {
+              resultStr = `\nOBSERVATION: Error al parsear el comando. Asegúrate de incluir el bloque de código Markdown después de TOOL: write_file <ruta>.`;
+            }
+          } else if (tool.type === "patch_file") {
+            const regex = /TOOL:\s*patch_file\s+([^\n\r]+)(?:\r?\n)*```[a-zA-Z]*\r?\n([\s\S]*?)(?:\r?\n```|$)/i;
+            const match = target.content.match(regex);
+            if (match) {
+              const file_path = match[1].trim();
+              const diffBlock = match[2];
+              const searchMatch = diffBlock.match(/<<<<<<< SEARCH\r?\n([\s\S]*?)\r?\n=======/i);
+              const replaceMatch = diffBlock.match(/=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/i);
+              
+              if (searchMatch && replaceMatch) {
+                const search = searchMatch[1];
+                const replace = replaceMatch[1];
+                const resolvedPath = resolvePath(file_path, cwd);
+                await invoke("patch_local_file", { path: resolvedPath, search, replace });
+                resultStr = `\nOBSERVATION: Archivo "${file_path}" modificado con éxito.`;
+              } else {
+                resultStr = `\nOBSERVATION: Error: No se pudo parsear el bloque de búsqueda y reemplazo. Recuerda usar el formato:\n<<<<<<< SEARCH\n[código existente]\n=======\n[código nuevo]\n>>>>>>> REPLACE`;
+              }
+            } else {
+              resultStr = `\nOBSERVATION: Error al parsear el comando. Asegúrate de incluir el bloque diff Markdown después de TOOL: patch_file <ruta>.`;
+            }
+          } else if (tool.type === "run_python") {
+            const regex = /TOOL:\s*run_python(?:\s+([^\n\r]+))?(?:\r?\n)*```[a-zA-Z]*\r?\n([\s\S]*?)(?:\r?\n```|$)/i;
+            const match = target.content.match(regex);
+            if (match) {
+              const code = match[2];
+              const commandCwd = cwd || ".";
+              setTerminalOpen(true);
+              setTerminalLogs(curr => [...curr, `>>> Ejecutando script de Python en: ${commandCwd}`]);
+              
+              const pythonRes = await invoke<{ stdout: string; stderr: string; images: string[] }>("run_python_script", {
+                code,
+                cwd: commandCwd,
+              });
+
+              setTerminalLogs(curr => [
+                ...curr,
+                `[python stdout] ${pythonRes.stdout}`,
+                `[python stderr] ${pythonRes.stderr}`
+              ]);
+
+              let imageMarkdown = "";
+              if (pythonRes.images && pythonRes.images.length > 0) {
+                imageMarkdown = pythonRes.images.map((img, i) => {
+                  return `\n\n![Gráfico Python ${i + 1}](data:image/png;base64,${img})`;
+                }).join("\n");
+              }
+
+              resultStr = `\nOBSERVATION (Resultado de Python):\nStdout:\n\`\`\`\n${pythonRes.stdout || "(vacío)"}\n\`\`\`\nStderr:\n\`\`\`\n${pythonRes.stderr || "(vacío)"}\n\`\`\`${imageMarkdown}`;
+            } else {
+              resultStr = `\nOBSERVATION: Error al parsear el código Python. Asegúrate de incluir el script dentro de un bloque de código Markdown después de TOOL: run_python.`;
+            }
           } else {
             const foundTool = customToolsRef.current.find(t => t.name.toLowerCase() === tool.type.toLowerCase());
             if (foundTool) {
@@ -1667,9 +1999,20 @@ function App() {
       setModelStatus(payload as "stopped" | "loading" | "ready");
     });
 
+    const terminalLineUnlisten = listen<{ command_id: string; line: string }>("terminal-line", ({ payload }) => {
+      setTerminalLogs(current => [...current.slice(-499), `[${payload.command_id}] ${payload.line}`]);
+    });
+
+    const terminalFinishedUnlisten = listen<{ command_id: string; exit_code: number | null }>("terminal-finished", ({ payload }) => {
+      setTerminalLogs(current => [...current, `[${payload.command_id}] --- Proceso finalizado con código: ${payload.exit_code} ---`]);
+      setTerminalActiveId(null);
+    });
+
     return () => {
       unlisten.then((dispose) => dispose());
       statusUnlisten.then((dispose) => dispose());
+      terminalLineUnlisten.then((dispose) => dispose());
+      terminalFinishedUnlisten.then((dispose) => dispose());
     };
   }, []);
 
@@ -2478,73 +2821,98 @@ function App() {
             </div>
           )}
         </div>
-        <nav aria-label="Conversaciones">
-          <p className="nav-label">
-            <span>Recientes</span>
-          </p>
-          {conversations.map((conv) => {
-            const isActive = conv.id === activeConversationId;
-            const isEditing = conv.id === editingConversationId;
-            
-            return (
-              <div
-                key={conv.id}
-                className={`conversation-item-container${isActive ? " active" : ""}`}
-              >
-                {isEditing ? (
-                  <input
-                    type="text"
-                    className="conv-rename-input"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onKeyDown={(e) => handleRenameKeyDown(e, conv.id)}
-                    onBlur={() => saveConversationTitle(conv.id)}
-                    autoFocus
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    className={`conversation-link${isActive ? " active" : ""}`}
-                    onClick={() => selectConversation(conv.id)}
-                  >
-                    <span className="conv-icon" aria-hidden="true">
-                      <ChatIcon />
-                    </span>
-                    <span className="conv-text">
-                      {conv.title}
-                    </span>
-                  </button>
-                )}
-                
-                {!isEditing && (
-                  <div className="conv-actions">
+
+        {/* Sidebar tabs */}
+        <div className="sidebar-tabs">
+          <button
+            type="button"
+            className={`sidebar-tab-btn ${activeTab === "chats" ? "active" : ""}`}
+            onClick={() => setActiveTab("chats")}
+            title="Mostrar conversaciones recientes"
+          >
+            Chats
+          </button>
+          <button
+            type="button"
+            className={`sidebar-tab-btn ${activeTab === "files" ? "active" : ""}`}
+            onClick={() => setActiveTab("files")}
+            title="Explorar archivos del proyecto"
+          >
+            Archivos
+          </button>
+        </div>
+
+        {activeTab === "chats" ? (
+          <nav aria-label="Conversaciones">
+            <p className="nav-label">
+              <span>Recientes</span>
+            </p>
+            {conversations.map((conv) => {
+              const isActive = conv.id === activeConversationId;
+              const isEditing = conv.id === editingConversationId;
+              
+              return (
+                <div
+                  key={conv.id}
+                  className={`conversation-item-container${isActive ? " active" : ""}`}
+                >
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      className="conv-rename-input"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onKeyDown={(e) => handleRenameKeyDown(e, conv.id)}
+                      onBlur={() => saveConversationTitle(conv.id)}
+                      autoFocus
+                    />
+                  ) : (
                     <button
                       type="button"
-                      onClick={(e) => startEditingConversation(conv.id, conv.title, e)}
-                      title="Renombrar conversación"
-                      className="conv-action-btn"
+                      className={`conversation-link${isActive ? " active" : ""}`}
+                      onClick={() => selectConversation(conv.id)}
                     >
-                      <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                        <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.03l-.179.178c-.098.098-.241.14-.379.11L1 10.707V12h1v.5a.5.5 0 0 1 .5.5v.5h1v.5a.5.5 0 0 1 .5.5v.5h1v.5a.5.5 0 0 1 .5.5v.207l.3-.3z"/>
-                      </svg>
+                      <span className="conv-icon" aria-hidden="true">
+                        <ChatIcon />
+                      </span>
+                      <span className="conv-text">
+                        {conv.title}
+                      </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => deleteConversation(conv.id, e)}
-                      title="Eliminar conversación"
-                      className="conv-action-btn hover-danger"
-                    >
-                      <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                        <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                      </svg>
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+                  )}
+                  
+                  {!isEditing && (
+                    <div className="conv-actions">
+                      <button
+                        type="button"
+                        onClick={(e) => startEditingConversation(conv.id, conv.title, e)}
+                        title="Renombrar conversación"
+                        className="conv-action-btn"
+                      >
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                          <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.03l-.179.178c-.098.098-.241.14-.379.11L1 10.707V12h1v.5a.5.5 0 0 1 .5.5v.5h1v.5a.5.5 0 0 1 .5.5v.5h1v.5a.5.5 0 0 1 .5.5v.207l.3-.3z"/>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => deleteConversation(conv.id, e)}
+                        title="Eliminar conversación"
+                        className="conv-action-btn hover-danger"
+                      >
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                          <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        ) : (
+          <FileExplorer rootPath={currentWorkDir} onSelectFolder={updateWorkDir} />
+        )}
         <div className="sidebar-footer">
           <div className="local-note">
             <span className="dot" aria-hidden="true" />
@@ -2712,6 +3080,59 @@ function App() {
           </div>
         </div>
 
+        {terminalOpen && (
+          <div className="terminal-panel">
+            <div className="terminal-header">
+              <div className="terminal-title">
+                <span className="terminal-icon">📟</span>
+                Consola de Procesos
+              </div>
+              <div className="terminal-actions">
+                {terminalActiveId && (
+                  <button
+                    type="button"
+                    className="terminal-kill-btn"
+                    onClick={async () => {
+                      try {
+                        await invoke("kill_command", { commandId: terminalActiveId });
+                        setTerminalLogs(current => [...current, "[sistema] --- Proceso cancelado por el usuario ---"]);
+                        setTerminalActiveId(null);
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    }}
+                  >
+                    Detener
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="terminal-clear-btn"
+                  onClick={() => setTerminalLogs([])}
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  className="terminal-close-btn"
+                  onClick={() => setTerminalOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="terminal-body" ref={terminalBodyRef}>
+              {terminalLogs.length === 0 ? (
+                <div className="terminal-empty">Consola vacía. Los comandos que ejecute el agente aparecerán aquí en tiempo real.</div>
+              ) : (
+                terminalLogs.map((log, index) => (
+                  <div key={index} className="terminal-line">{log}</div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         <form className="composer" onSubmit={sendPrompt}>
           <textarea
             ref={textareaRef}
@@ -2730,6 +3151,15 @@ function App() {
               </button>
               <button type="button" className="composer-tool active" aria-label="Modo difusión" title="Modo difusión">
                 <SparkleIcon />
+              </button>
+              <button 
+                type="button" 
+                className={`composer-tool ${terminalOpen ? "active" : ""}`} 
+                onClick={() => setTerminalOpen(!terminalOpen)}
+                aria-label="Abrir terminal" 
+                title="Consola de terminal"
+              >
+                📟
               </button>
             </div>
             <span className="hint">

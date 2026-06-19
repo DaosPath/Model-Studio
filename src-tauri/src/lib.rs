@@ -1925,6 +1925,341 @@ fn parse_png_metadata(file_path: String) -> Result<ParsedMetadata, String> {
     }
 }
 
+// ====== Advanced Coding Agent Structs & Commands ======
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct FileNode {
+    name: String,
+    path: String,
+    is_dir: bool,
+    children: Option<Vec<FileNode>>,
+}
+
+struct ProcessRegistry {
+    processes: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::Mutex<std::process::Child>>>>>,
+}
+
+#[derive(Serialize, Clone)]
+struct TerminalLinePayload {
+    command_id: String,
+    line: String,
+}
+
+#[derive(Serialize, Clone)]
+struct TerminalFinishedPayload {
+    command_id: String,
+    exit_code: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct PythonResult {
+    stdout: String,
+    stderr: String,
+    images: Vec<String>, // Base64 png data
+}
+
+fn scan_dir_recursive(path: &std::path::Path) -> Result<Vec<FileNode>, String> {
+    let mut nodes = Vec::new();
+    if !path.is_dir() {
+        return Ok(nodes);
+    }
+    
+    let entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let file_path = entry.path();
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            
+            let lower_name = file_name.to_lowercase();
+            if lower_name == "node_modules" 
+                || lower_name == ".git" 
+                || lower_name == "target" 
+                || lower_name == "dist" 
+                || lower_name == "build" 
+                || lower_name == ".tauri" 
+            {
+                continue;
+            }
+            
+            let is_dir = file_path.is_dir();
+            let children = if is_dir {
+                match scan_dir_recursive(&file_path) {
+                    Ok(child_nodes) => Some(child_nodes),
+                    Err(_) => None,
+                }
+            } else {
+                None
+            };
+            
+            nodes.push(FileNode {
+                name: file_name,
+                path: file_path.to_string_lossy().to_string(),
+                is_dir,
+                children,
+            });
+        }
+    }
+    
+    nodes.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            b.is_dir.cmp(&a.is_dir)
+        } else {
+            a.name.cmp(&b.name)
+        }
+    });
+    
+    Ok(nodes)
+}
+
+#[tauri::command]
+fn get_directory_tree(root_path: String) -> Result<Vec<FileNode>, String> {
+    let path = std::path::Path::new(&root_path);
+    if !path.is_dir() {
+        return Err(format!("No es un directorio válido: {}", root_path));
+    }
+    scan_dir_recursive(path)
+}
+
+#[tauri::command]
+fn write_local_file(path: String, content: String) -> Result<(), String> {
+    let file_path = std::path::Path::new(&path);
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn patch_local_file(path: String, search: String, replace: String) -> Result<(), String> {
+    let file_path = std::path::Path::new(&path);
+    if !file_path.is_file() {
+        return Err(format!("El archivo no existe: {}", path));
+    }
+    
+    let content = std::fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    
+    let matches: Vec<_> = content.matches(&search).collect();
+    if matches.is_empty() {
+        return Err("No se encontró el bloque de búsqueda (SEARCH block) en el archivo.".to_string());
+    }
+    if matches.len() > 1 {
+        return Err("El bloque de búsqueda (SEARCH block) coincide múltiples veces en el archivo. Sé más específico.".to_string());
+    }
+    
+    let updated = content.replace(&search, &replace);
+    std::fs::write(file_path, updated).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn run_command_async(
+    command_id: String,
+    command: String,
+    cwd: String,
+    app: tauri::AppHandle,
+    process_registry: tauri::State<'_, ProcessRegistry>,
+) -> Result<(), String> {
+    if !std::path::Path::new(&cwd).is_dir() {
+        return Err(format!("El directorio de trabajo no existe: {}", cwd));
+    }
+
+    #[cfg(target_os = "windows")]
+    let mut cmd = std::process::Command::new("powershell");
+    #[cfg(target_os = "windows")]
+    cmd.args(&["-Command", &command]);
+
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = std::process::Command::new("sh");
+    #[cfg(not(target_os = "windows"))]
+    cmd.args(&["-c", &command]);
+
+    cmd.current_dir(&cwd);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let mut child = cmd.spawn().map_err(|e| format!("Fallo al spawnear comando: {}", e))?;
+    
+    let stdout = child.stdout.take().ok_or("No se pudo capturar stdout")?;
+    let stderr = child.stderr.take().ok_or("No se pudo capturar stderr")?;
+    
+    let child_arc = std::sync::Arc::new(std::sync::Mutex::new(child));
+    
+    {
+        let mut map = process_registry.processes.lock().map_err(|e| e.to_string())?;
+        map.insert(command_id.clone(), child_arc.clone());
+    }
+
+    let app_handle_stdout = app.clone();
+    let command_id_stdout = command_id.clone();
+    
+    std::thread::spawn(move || {
+        let reader = std::io::BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(line_str) = line {
+                let _ = app_handle_stdout.emit(
+                    "terminal-line",
+                    TerminalLinePayload {
+                        command_id: command_id_stdout.clone(),
+                        line: line_str,
+                    },
+                );
+            }
+        }
+    });
+
+    let app_handle_stderr = app.clone();
+    let command_id_stderr = command_id.clone();
+    std::thread::spawn(move || {
+        let reader = std::io::BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(line_str) = line {
+                let _ = app_handle_stderr.emit(
+                    "terminal-line",
+                    TerminalLinePayload {
+                        command_id: command_id_stderr.clone(),
+                        line: format!("[error] {}", line_str),
+                    },
+                );
+            }
+        }
+    });
+
+    let command_id_finished = command_id.clone();
+    let registry_clone = std::sync::Arc::clone(&process_registry.processes);
+    let app_handle_finished = app.clone();
+    
+    std::thread::spawn(move || {
+        let mut exit_code = None;
+        
+        let mut child_guard = child_arc.lock().unwrap();
+        if let Ok(status) = child_guard.wait() {
+            exit_code = status.code();
+        }
+        
+        if let Ok(mut map) = registry_clone.lock() {
+            map.remove(&command_id_finished);
+        }
+        
+        let _ = app_handle_finished.emit(
+            "terminal-finished",
+            TerminalFinishedPayload {
+                command_id: command_id_finished,
+                exit_code,
+            },
+        );
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+fn kill_command(
+    command_id: String,
+    process_registry: tauri::State<'_, ProcessRegistry>,
+) -> Result<(), String> {
+    let mut map = process_registry.processes.lock().map_err(|e| e.to_string())?;
+    if let Some(child_arc) = map.remove(&command_id) {
+        let mut child = child_arc.lock().map_err(|e| e.to_string())?;
+        let _ = child.kill();
+        Ok(())
+    } else {
+        Err("Proceso no encontrado o ya finalizado".to_string())
+    }
+}
+
+#[tauri::command]
+fn run_python_script(
+    code: String,
+    cwd: String,
+) -> Result<PythonResult, String> {
+    let cwd_path = std::path::Path::new(&cwd);
+    if !cwd_path.is_dir() {
+        return Err(format!("El directorio de trabajo no existe: {}", cwd));
+    }
+
+    let mut final_code = String::new();
+    final_code.push_str("import sys\n");
+    final_code.push_str("try:\n");
+    final_code.push_str("    import matplotlib\n");
+    final_code.push_str("    matplotlib.use('Agg')\n");
+    final_code.push_str("except ImportError:\n");
+    final_code.push_str("    pass\n\n");
+    final_code.push_str(&code);
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+        
+    let script_filename = format!(".temp_script_{}.py", timestamp);
+    let script_path = cwd_path.join(&script_filename);
+
+    std::fs::write(&script_path, final_code).map_err(|e| e.to_string())?;
+
+    let start_instant = std::time::SystemTime::now();
+
+    #[cfg(target_os = "windows")]
+    let mut cmd = std::process::Command::new("python");
+    #[cfg(target_os = "windows")]
+    cmd.arg(&script_filename);
+
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = std::process::Command::new("python3");
+    #[cfg(not(target_os = "windows"))]
+    cmd.arg(&script_filename);
+
+    cmd.current_dir(cwd_path);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let child = cmd.spawn().map_err(|e| format!("Fallo al ejecutar python: {}", e))?;
+    let output = child.wait_with_output().map_err(|e| format!("Error esperando salida de python: {}", e))?;
+    
+    let _ = std::fs::remove_file(&script_path);
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    let mut images = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(cwd_path) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_file() && path.extension().map_or(false, |ext| ext == "png") {
+                    if let Ok(metadata) = entry.metadata() {
+                        if let Ok(modified) = metadata.modified() {
+                            if modified >= start_instant {
+                                use std::io::Read as _;
+                                if let Ok(mut file) = std::fs::File::open(&path) {
+                                    let mut buffer = Vec::new();
+                                    if file.read_to_end(&mut buffer).is_ok() {
+                                        use base64::Engine as _;
+                                        let b64 = base64::engine::general_purpose::STANDARD.encode(&buffer);
+                                        images.push(b64);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(PythonResult {
+        stdout,
+        stderr,
+        images,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -2040,6 +2375,7 @@ pub fn run() {
         .manage(RunnerState::default())
         .manage(ImageRunnerState::default())
         .manage(GpuCache::default())
+        .manage(ProcessRegistry { processes: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())) })
         .invoke_handler(tauri::generate_handler![
             generate,
             stop_generation,
@@ -2073,7 +2409,13 @@ pub fn run() {
             db_delete_custom_tool,
             run_local_command,
             db_update_conversation_directory,
-            check_directory_exists
+            check_directory_exists,
+            get_directory_tree,
+            write_local_file,
+            patch_local_file,
+            run_command_async,
+            kill_command,
+            run_python_script
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

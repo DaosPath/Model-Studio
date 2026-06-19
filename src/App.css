@@ -3861,3 +3861,344 @@ summary:focus-visible {
 .reset-path-btn:active {
   transform: translateY(0);
 }
+
+/* ====== Sidebar Tabs ====== */
+.sidebar-tabs {
+  display: flex;
+  background: var(--inset);
+  padding: 2px;
+  border-radius: var(--r-md);
+  margin: 10px 14px;
+  border: 1px solid var(--border-soft);
+}
+
+.sidebar-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: calc(var(--r-md) - 2px);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+}
+
+.sidebar-tab-btn:hover {
+  color: var(--text);
+}
+
+.sidebar-tab-btn.active {
+  background: var(--bg-2);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-soft);
+}
+
+/* ====== File Explorer ====== */
+.file-explorer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 14px;
+}
+
+.file-explorer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.file-explorer-header h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.refresh-explorer-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.refresh-explorer-btn:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
+
+.file-tree-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+
+.file-node-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-node {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.file-node:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.file-node.folder {
+  color: var(--body);
+  font-weight: 500;
+}
+
+.file-node.file {
+  color: var(--muted);
+}
+
+.folder-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted-2);
+  font-size: 8px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-right: 4px;
+}
+
+.node-icon {
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.node-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-cd-btn {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-glow);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.file-node:hover .folder-cd-btn {
+  opacity: 1;
+}
+
+.folder-cd-btn:hover {
+  background: var(--accent-soft-strong);
+  transform: scale(1.05);
+}
+
+.file-explorer-empty {
+  padding: 30px 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.file-explorer-error {
+  background: var(--error-soft);
+  color: var(--error);
+  border: 1px solid var(--error);
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-size: 11.5px;
+  margin-bottom: 12px;
+}
+
+.no-files-msg {
+  color: var(--muted-2);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* ====== Code Viewer Modal ====== */
+.file-viewer-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.file-viewer-content {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.file-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.file-viewer-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.close-modal-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s ease;
+}
+
+.close-modal-btn:hover {
+  color: var(--text);
+}
+
+.file-viewer-pre {
+  margin: 0;
+  padding: 20px;
+  overflow: auto;
+  background: var(--inset);
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--body);
+}
+
+/* ====== Collapsible Bottom Terminal Panel ====== */
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-1);
+  border-top: 1px solid var(--border);
+  height: 200px;
+  flex-shrink: 0;
+  z-index: 50;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-2);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-actions button {
+  background: var(--bg-3);
+  border: 1px solid var(--border-soft);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.terminal-actions button:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.terminal-actions button.terminal-kill-btn {
+  background: var(--error-soft);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.terminal-actions button.terminal-kill-btn:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.terminal-body {
+  flex: 1;
+  background: var(--inset);
+  padding: 12px 16px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #a7f3d0; /* Soft terminal green */
+}
+
+.terminal-line {
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-line[class*="[error]"] {
+  color: #fca5a5; /* Soft terminal red */
+}
+
+.terminal-empty {
+  color: var(--muted-2);
+  font-style: italic;
+  font-size: 11px;
+  text-align: center;
+  padding-top: 30px;
+}
