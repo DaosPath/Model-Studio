@@ -40,6 +40,7 @@ type Conversation = {
   title: string;
   created_at: string;
   project_id?: number | null;
+  current_directory?: string | null;
 };
 
 type Project = {
@@ -381,20 +382,45 @@ function MarkdownMessage({
   );
 }
 
-const DEVELOPER_SYSTEM = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.`;
+const DEVELOPER_SYSTEM = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.
 
-const RESEARCHER_SYSTEM = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.`;
+Puedes navegar e inspeccionar el espacio de trabajo local usando las siguientes herramientas (escríbelas en una línea nueva exactamente como se describen):
+TOOL: read_file <ruta_relativa_o_absoluta>
+TOOL: list_dir <ruta_relativa_o_absoluta>
+TOOL: cd <ruta_relativa_o_absoluta>
+TOOL: run_command <comando_de_consola>
+
+Por ejemplo, para entrar en la carpeta 'src', escribe exactamente:
+TOOL: cd src
+Y espera a recibir la respuesta (OBSERVATION) antes de continuar.`;
+
+const RESEARCHER_SYSTEM = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.
+
+Puedes navegar e inspeccionar el espacio de trabajo local usando las siguientes herramientas (escríbelas en una línea nueva exactamente como se describen):
+TOOL: read_file <ruta_relativa_o_absoluta>
+TOOL: list_dir <ruta_relativa_o_absoluta>
+TOOL: cd <ruta_relativa_o_absoluta>
+TOOL: run_command <comando_de_consola>
+
+Por ejemplo, para entrar en la carpeta 'docs', escribe exactamente:
+TOOL: cd docs
+Y espera a recibir la respuesta (OBSERVATION) antes de continuar.`;
 
 const FILE_SPECIALIST_SYSTEM = `Eres un Especialista de Archivos (File Specialist Mode) con acceso al sistema de archivos local a través de herramientas especiales.
-Puedes inspeccionar el espacio de trabajo usando las siguientes herramientas. Para usarlas, debes escribir exactamente el comando en una línea nueva, sin texto antes ni después en esa misma línea:
+Puedes explorar, navegar y leer los archivos usando las siguientes herramientas. Para usarlas, debes escribir exactamente el comando en una línea nueva, sin texto antes ni después en esa misma línea:
 
-TOOL: read_file <ruta_absoluta>
-TOOL: list_dir <ruta_absoluta>
+TOOL: read_file <ruta_relativa_o_absoluta>
+TOOL: list_dir <ruta_relativa_o_absoluta>
+TOOL: cd <ruta_relativa_o_absoluta>
+TOOL: run_command <comando_de_consola>
 
-Por ejemplo, si necesitas ver el contenido de 'C:\\proyectos\\main.js', escribe exactamente:
-TOOL: read_file C:\\proyectos\\main.js
+Por ejemplo, si necesitas entrar en 'src' y luego ver 'main.js', escribe primero:
+TOOL: cd src
 
-Y espera a recibir la respuesta (OBSERVATION). No inventes el contenido de los archivos. Analiza el contenido real devuelto por la herramienta.`;
+Y en el siguiente paso, cuando veas la OBSERVATION confirmando el cambio, escribe:
+TOOL: read_file main.js
+
+No inventes el contenido de los archivos. Analiza el contenido real devuelto por las herramientas.`;
 
 function SuperAgentPanel({
   steps,
@@ -1050,6 +1076,22 @@ function App() {
   const customToolsRef = useRef<CustomTool[]>([]);
   customToolsRef.current = customTools;
 
+  const conversationsRef = useRef<Conversation[]>([]);
+  conversationsRef.current = conversations;
+
+  const activeConversationIdRef = useRef<number | null>(null);
+  activeConversationIdRef.current = activeConversationId;
+
+  const activeConversation = conversations.find((c) => c.id === activeConversationId);
+  const currentWorkDir = useMemo(() => {
+    if (!activeConversation) return null;
+    if (activeConversation.current_directory) {
+      return activeConversation.current_directory;
+    }
+    const proj = projects.find((p) => p.id === activeProjectId);
+    return proj ? proj.path : null;
+  }, [activeConversation, projects, activeProjectId]);
+
   async function loadProjects() {
     try {
       const list = await invoke<Project[]>("db_get_projects");
@@ -1394,12 +1436,15 @@ function App() {
           const matchReadFile = trimmed.match(/^TOOL:\s*read_file\s+(.+)$/i);
           const matchListDir = trimmed.match(/^TOOL:\s*list_dir\s+(.+)$/i);
           const matchRunCommand = trimmed.match(/^TOOL:\s*run_command\s+(.+)$/i);
+          const matchCd = trimmed.match(/^TOOL:\s*cd\s+(.+)$/i) || trimmed.match(/^TOOL:\s*change_directory\s+(.+)$/i);
           if (matchReadFile) {
             pendingToolCall.current = { type: "read_file", argument: matchReadFile[1].trim() };
           } else if (matchListDir) {
             pendingToolCall.current = { type: "list_dir", argument: matchListDir[1].trim() };
           } else if (matchRunCommand) {
             pendingToolCall.current = { type: "run_command", argument: matchRunCommand[1].trim() };
+          } else if (matchCd) {
+            pendingToolCall.current = { type: "cd", argument: matchCd[1].trim() };
           } else {
             const matchCustom = trimmed.match(/^TOOL:\s*([a-zA-Z0-9_-]+)(?:\s+(.+))?$/i);
             if (matchCustom) {
@@ -1534,12 +1579,37 @@ function App() {
           })
         );
 
+        const activeConversation = conversationsRef.current.find(c => c.id === activeConversationIdRef.current);
         const activeProj = projectsRef.current.find(p => p.id === activeProjectIdRef.current);
-        const cwd = activeProj ? activeProj.path : "";
+        let cwd = "";
+        if (activeConversation?.current_directory) {
+          cwd = activeConversation.current_directory;
+        } else if (activeProj) {
+          cwd = activeProj.path;
+        }
 
         let resultStr = "";
         try {
-          if (tool.type === "read_file") {
+          if (tool.type === "cd") {
+            const resolvedPath = resolvePath(tool.argument, cwd);
+            const exists = await invoke<boolean>("check_directory_exists", { path: resolvedPath });
+            if (exists) {
+              await invoke("db_update_conversation_directory", {
+                conversationId: activeConversationIdRef.current,
+                directory: resolvedPath,
+              });
+              setConversations((current) =>
+                current.map((c) =>
+                  c.id === activeConversationIdRef.current
+                    ? { ...c, current_directory: resolvedPath }
+                    : c
+                )
+              );
+              resultStr = `\nOBSERVATION: Directorio de trabajo cambiado con éxito a: ${resolvedPath}`;
+            } else {
+              resultStr = `\nOBSERVATION: Error: El directorio "${tool.argument}" (resuelto como "${resolvedPath}") no existe o no es accesible.`;
+            }
+          } else if (tool.type === "read_file") {
             const resolvedPath = resolvePath(tool.argument, cwd);
             const content = await invoke<string>("read_local_file", { path: resolvedPath });
             resultStr = `\nOBSERVATION (Contenido de ${tool.argument}):\n\`\`\`\n${content}\n\`\`\``;
@@ -2489,6 +2559,34 @@ function App() {
 
       {engineKind !== "image" ? (
       <section className="chat">
+        {currentWorkDir && (
+          <div className="current-path-indicator">
+            <span className="current-path-icon">📂</span>
+            <span className="current-path-label">Directorio actual:</span>
+            <code className="current-path-code">{currentWorkDir}</code>
+            {activeConversation?.current_directory && (
+              <button
+                type="button"
+                className="reset-path-btn"
+                onClick={async () => {
+                  if (running) return;
+                  try {
+                    await invoke("db_update_conversation_directory", { conversationId: activeConversationId, directory: null });
+                    setConversations(current =>
+                      current.map(c => c.id === activeConversationId ? { ...c, current_directory: null } : c)
+                    );
+                    setLogs(current => [...current, "[sistema] Directorio de trabajo restablecido a la raíz del proyecto"]);
+                  } catch (e) {
+                    console.error("Error resetting path:", e);
+                  }
+                }}
+                title="Restablecer a la raíz del proyecto"
+              >
+                Restablecer
+              </button>
+            )}
+          </div>
+        )}
         <div className="conversation" ref={conversationRef}>
           <div className="conversation-inner">
             <div className="conversation-hero">

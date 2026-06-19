@@ -1328,6 +1328,7 @@ struct DbConversation {
     title: String,
     created_at: String,
     project_id: Option<i64>,
+    current_directory: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -1347,7 +1348,7 @@ fn db_get_conversations(project_id: Option<i64>, state: State<'_, DbState>) -> R
     
     let mut list = Vec::new();
     if let Some(pid) = project_id {
-        let mut stmt = conn.prepare("SELECT id, title, created_at, project_id FROM conversations WHERE project_id = ? ORDER BY id DESC")
+        let mut stmt = conn.prepare("SELECT id, title, created_at, project_id, current_directory FROM conversations WHERE project_id = ? ORDER BY id DESC")
             .map_err(|e| e.to_string())?;
         let rows = stmt.query_map([pid], |row| {
             Ok(DbConversation {
@@ -1355,13 +1356,14 @@ fn db_get_conversations(project_id: Option<i64>, state: State<'_, DbState>) -> R
                 title: row.get(1)?,
                 created_at: row.get(2)?,
                 project_id: row.get(3)?,
+                current_directory: row.get(4)?,
             })
         }).map_err(|e| e.to_string())?;
         for row in rows {
             list.push(row.map_err(|e| e.to_string())?);
         }
     } else {
-        let mut stmt = conn.prepare("SELECT id, title, created_at, project_id FROM conversations WHERE project_id IS NULL ORDER BY id DESC")
+        let mut stmt = conn.prepare("SELECT id, title, created_at, project_id, current_directory FROM conversations WHERE project_id IS NULL ORDER BY id DESC")
             .map_err(|e| e.to_string())?;
         let rows = stmt.query_map([], |row| {
             Ok(DbConversation {
@@ -1369,6 +1371,7 @@ fn db_get_conversations(project_id: Option<i64>, state: State<'_, DbState>) -> R
                 title: row.get(1)?,
                 created_at: row.get(2)?,
                 project_id: row.get(3)?,
+                current_directory: row.get(4)?,
             })
         }).map_err(|e| e.to_string())?;
         for row in rows {
@@ -1387,6 +1390,26 @@ fn db_create_conversation(title: String, project_id: Option<i64>, state: State<'
     )
     .map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn db_update_conversation_directory(
+    conversation_id: i64,
+    directory: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE conversations SET current_directory = ? WHERE id = ?",
+        rusqlite::params![directory, conversation_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn check_directory_exists(path: String) -> bool {
+    std::path::Path::new(&path).is_dir()
 }
 
 #[tauri::command]
@@ -1924,9 +1947,26 @@ pub fn run() {
                 [],
             )?;
 
-            // ALTER TABLE dynamically to add project_id if it doesn't exist
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+                    current_directory TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )",
+                [],
+            )?;
+
+            // ALTER TABLE dynamically to add project_id if it doesn't exist (for backward compatibility)
             let _ = conn.execute(
                 "ALTER TABLE conversations ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE",
+                [],
+            );
+
+            // ALTER TABLE dynamically to add current_directory if it doesn't exist (for backward compatibility)
+            let _ = conn.execute(
+                "ALTER TABLE conversations ADD COLUMN current_directory TEXT",
                 [],
             );
 
@@ -1936,15 +1976,6 @@ pub fn run() {
                     name TEXT NOT NULL UNIQUE,
                     description TEXT NOT NULL,
                     command_template TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )",
-                [],
-            )?;
-
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS conversations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )",
                 [],
@@ -2040,7 +2071,9 @@ pub fn run() {
             db_get_custom_tools,
             db_create_custom_tool,
             db_delete_custom_tool,
-            run_local_command
+            run_local_command,
+            db_update_conversation_directory,
+            check_directory_exists
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
