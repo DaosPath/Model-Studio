@@ -144,14 +144,6 @@ const DEFAULT_RUNNER = "runtime\\llama-diffusion-cli.exe";
 const DEFAULT_MODEL = "";
 const IS_TAURI = "__TAURI_INTERNALS__" in window;
 
-const initialMessages: Message[] = [
-  {
-    id: 1,
-    role: "assistant",
-    content:
-      "DiffusionGemma está instalado y listo para generar respuestas localmente.",
-  },
-];
 
 function LogoIcon() {
   return (
@@ -533,7 +525,16 @@ const translations: Record<string, Record<string, string>> = {
     commandTemplateLabel: "Plantilla de Comando Shell (usa {{arg}} para inyectar argumentos)",
     addToolBtn: "Agregar Herramienta",
     existingToolsTitle: "Herramientas Existentes",
-    noCustomTools: "No hay herramientas personalizadas creadas."
+    noCustomTools: "No hay herramientas personalizadas creadas.",
+    welcomeMessage: "DiffusionGemma está instalado y listo para generar respuestas localmente.",
+    contextOptimization: "Optimización de Contexto:",
+    thinking: "Pensando",
+    thinkingDuration: " durante {s} s",
+    diffusionProcess: "Proceso de difusión · {steps} pasos",
+    customToolsHeader: "También tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n",
+    customToolsInstruction: "\nPara llamar a una herramienta personalizada, escribe: TOOL: <nombre> <argumentos> en una nueva línea y espera la respuesta (OBSERVATION).",
+    customToolsArgs: "<argumentos>",
+    userMessageTag: "[Mensaje del usuario]:"
   },
   en: {
     settingsTitle: "General Settings",
@@ -640,7 +641,16 @@ const translations: Record<string, Record<string, string>> = {
     commandTemplateLabel: "Shell Command Template (use {{arg}} to inject arguments)",
     addToolBtn: "Add Tool",
     existingToolsTitle: "Existing Tools",
-    noCustomTools: "No custom tools created."
+    noCustomTools: "No custom tools created.",
+    welcomeMessage: "DiffusionGemma is installed and ready to generate responses locally.",
+    contextOptimization: "Context Optimization:",
+    thinking: "Thinking",
+    thinkingDuration: " for {s} s",
+    diffusionProcess: "Diffusion process · {steps} steps",
+    customToolsHeader: "You also have access to the following custom tools created by the user:\n",
+    customToolsInstruction: "\nTo call a custom tool, write: TOOL: <name> <arguments> on a new line and wait for the response (OBSERVATION).",
+    customToolsArgs: "<arguments>",
+    userMessageTag: "[User Message]:"
   },
   zh: {
     settingsTitle: "常规设置",
@@ -746,11 +756,20 @@ const translations: Record<string, Record<string, string>> = {
     commandTemplateLabel: "Shell 命令模板 (使用 {{arg}} 注入参数)",
     addToolBtn: "添加工具",
     existingToolsTitle: "现有工具",
-    noCustomTools: "没有创建自定义工具。"
+    noCustomTools: "没有创建自定义工具。",
+    welcomeMessage: "DiffusionGemma 已安装，已准备好在本地生成回答。",
+    contextOptimization: "上下文优化:",
+    thinking: "正在思考",
+    thinkingDuration: "，已耗时 {s} 秒",
+    diffusionProcess: "扩散过程 · {steps} 步",
+    customToolsHeader: "您还可以访问以下用户创建的自定义工具：\n",
+    customToolsInstruction: "\n要调用自定义工具，请在新行中编写：TOOL: <名称> <参数> 并等待响应 (OBSERVATION)。",
+    customToolsArgs: "<参数>",
+    userMessageTag: "[用户消息]:"
   }
 };
 
-const DEVELOPER_SYSTEM = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.
+const DEVELOPER_SYSTEM_ES = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.
 
 Puedes navegar, explorar, escribir y modificar el espacio de trabajo local usando las siguientes herramientas (escríbelas exactamente en una línea nueva):
 
@@ -797,7 +816,101 @@ TOOL: search_code inicializar base de datos
 
 Espera siempre la respuesta (OBSERVATION) antes de emitir tu siguiente paso o razonamiento.`;
 
-const RESEARCHER_SYSTEM = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.
+const DEVELOPER_SYSTEM_EN = `You are an Elite Programmer Assistant (Developer Mode). Your goal is to write clean, efficient, and well-structured code. Always explain your design decisions and follow programming best practices.
+
+You can navigate, explore, write, and modify the local workspace using the following tools (write them exactly on a new line):
+
+TOOL: read_file <relative_or_absolute_path>
+TOOL: list_dir <relative_or_absolute_path>
+TOOL: cd <relative_or_absolute_path>
+TOOL: run_command <console_command>
+TOOL: search_code <keyword_query>
+
+TOOL: write_file <relative_or_absolute_path>
+[Immediately followed by a Markdown code block with the file content]
+
+TOOL: patch_file <relative_or_absolute_path>
+[Followed by a Markdown diff block with exact SEARCH/REPLACE markers to edit files without rewriting them entirely:
+<<<<<<< SEARCH
+[exact existing code]
+=======
+[new replacing code]
+>>>>>>> REPLACE
+]
+
+TOOL: run_python
+[Followed by a python code block to run calculations or generate scripts. If you generate images (.png plots), the system will automatically render them in the chat]
+
+Example for creating a file:
+TOOL: write_file src/utils.js
+\`\`\`javascript
+const add = (a, b) => a + b;
+\`\`\`
+
+Example for editing a file:
+TOOL: patch_file src/utils.js
+\`\`\`diff
+<<<<<<< SEARCH
+const add = (a, b) => a + b;
+=======
+const add = (a, b) => a + b;
+const sub = (a, b) => a - b;
+>>>>>>> REPLACE
+\`\`\`
+
+Example for searching code (use this to quickly find functions, classes, or variables):
+TOOL: search_code initialize database
+
+Always wait for the response (OBSERVATION) before outputting your next step or reasoning.`;
+
+const DEVELOPER_SYSTEM_ZH = `您原意是精英程序员助手 (Developer Mode)。您的目标是编写干净、高效且结构良好的代码。请始终解释您的设计决策并遵循编程最佳实践。
+
+您可以使用以下工具浏览、探索、写入和修改本地工作空间（请在一行中精确写出）：
+
+TOOL: read_file <相对或绝对路径>
+TOOL: list_dir <相对或绝对路径>
+TOOL: cd <相对或绝对路径>
+TOOL: run_command <控制台命令>
+TOOL: search_code <关键词查询>
+
+TOOL: write_file <相对或绝对路径>
+[紧接着是一个包含文件内容的 Markdown 代码块]
+
+TOOL: patch_file <相对或绝对路径>
+[接着是一个包含精确 SEARCH/REPLACE 标记的 Markdown diff 代码块，用于编辑文件而无需完全重写：
+<<<<<<< SEARCH
+[精确的现有代码]
+=======
+[新的替换代码]
+>>>>>>> REPLACE
+]
+
+TOOL: run_python
+[接着是一个 python 代码块，用于运行计算或生成脚本。如果生成图像（.png 图表），系统会自动在聊天中渲染它们]
+
+创建文件的示例：
+TOOL: write_file src/utils.js
+\`\`\`javascript
+const add = (a, b) => a + b;
+\`\`\`
+
+编辑文件的示例：
+TOOL: patch_file src/utils.js
+\`\`\`diff
+<<<<<<< SEARCH
+const add = (a, b) => a + b;
+=======
+const add = (a, b) => a + b;
+const sub = (a, b) => a - b;
+>>>>>>> REPLACE
+\`\`\`
+
+搜索代码的示例（使用此工具快速查找函数、类或变量）：
+TOOL: search_code 初始化数据库
+
+在输出下一步骤或推理之前，请始终等待响应 (OBSERVATION)。`;
+
+const RESEARCHER_SYSTEM_ES = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.
 
 Puedes navegar e investigar el espacio de trabajo local usando las siguientes herramientas (escríbelas exactamente en una línea nueva):
 TOOL: read_file <ruta_relativa_o_absoluta>
@@ -817,7 +930,47 @@ print("Análisis listo")
 
 Espera siempre la respuesta (OBSERVATION) antes de continuar.`;
 
-const FILE_SPECIALIST_SYSTEM = `Eres un Especialista de Archivos (File Specialist Mode) con acceso al sistema de archivos local. Puedes explorar, crear y modificar archivos utilizando las herramientas del sistema:
+const RESEARCHER_SYSTEM_EN = `You are an Elite Researcher Assistant (Researcher Mode). Your goal is to analyze information, find facts, summarize complex topics, and provide accurate, data-driven answers.
+
+You can navigate and research the local workspace using the following tools (write them exactly on a new line):
+TOOL: read_file <relative_or_absolute_path>
+TOOL: list_dir <relative_or_absolute_path>
+TOOL: cd <relative_or_absolute_path>
+TOOL: run_command <console_command>
+TOOL: search_code <keyword_query>
+TOOL: run_python
+[Followed by a python code block to process data, perform statistical analysis, or plot graphs. The generated PNG plots will automatically appear in the chat]
+
+Example for running python:
+TOOL: run_python
+\`\`\`python
+import pandas as pd
+print("Analysis ready")
+\`\`\`
+
+Always wait for the response (OBSERVATION) before continuing.`;
+
+const RESEARCHER_SYSTEM_ZH = `您原意是精英研究员助手 (Researcher Mode)。您的目标是分析信息、寻找事实、总结复杂主题并提供准确且基于数据的回答。
+
+您可以使用以下工具浏览和研究本地工作空间（请在一行中精确写出）：
+TOOL: read_file <相对或绝对路径>
+TOOL: list_dir <相对或绝对路径>
+TOOL: cd <相对或绝对路径>
+TOOL: run_command <控制台命令>
+TOOL: search_code <关键词查询>
+TOOL: run_python
+[接着是一个 python 代码块，用于处理数据、进行统计分析或绘图。生成的 PNG 图表将自动在聊天中显示]
+
+运行 python 的示例：
+TOOL: run_python
+\`\`\`python
+import pandas as pd
+print("分析就绪")
+\`\`\`
+
+请始终在继续之前等待响应 (OBSERVATION)。`;
+
+const FILE_SPECIALIST_SYSTEM_ES = `Eres un Especialista de Archivos (File Specialist Mode) con acceso al sistema de archivos local. Puedes explorar, crear y modificar archivos utilizando las herramientas del sistema:
 
 TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
@@ -843,6 +996,80 @@ reemplazo
 \`\`\`
 
 No inventes el contenido de los archivos. Analiza el contenido real devuelto por las herramientas y espera la respuesta (OBSERVATION) antes de continuar.`;
+
+const FILE_SPECIALIST_SYSTEM_EN = `You are a File Specialist (File Specialist Mode) with access to the local file system. You can explore, create, and modify files using the system tools:
+
+TOOL: read_file <relative_or_absolute_path>
+TOOL: list_dir <relative_or_absolute_path>
+TOOL: cd <relative_or_absolute_path>
+TOOL: run_command <console_command>
+TOOL: search_code <keyword_query>
+TOOL: write_file <relative_or_absolute_path>
+TOOL: patch_file <relative_or_absolute_path>
+
+Format for write_file:
+TOOL: write_file path/file.txt
+\`\`\`text
+content
+\`\`\`
+
+Format for patch_file:
+\`\`\`diff
+<<<<<<< SEARCH
+existing
+=======
+replacement
+>>>>>>> REPLACE
+\`\`\`
+
+Do not invent the contents of the files. Analyze the actual content returned by the tools and wait for the response (OBSERVATION) before continuing.`;
+
+const FILE_SPECIALIST_SYSTEM_ZH = `您原意是文件专家 (File Specialist Mode)，拥有对本地文件系统的访问权限。您可以使用系统工具探索、创建和修改文件：
+
+TOOL: read_file <相对或绝对路径>
+TOOL: list_dir <相对或绝对路径>
+TOOL: cd <相对或绝对路径>
+TOOL: run_command <控制台命令>
+TOOL: search_code <关键词查询>
+TOOL: write_file <相对或绝对路径>
+TOOL: patch_file <相对或绝对路径>
+
+write_file 格式：
+TOOL: write_file 路径/文件.txt
+\`\`\`text
+内容
+\`\`\`
+
+patch_file 格式：
+\`\`\`diff
+<<<<<<< SEARCH
+存在内容
+=======
+替换内容
+>>>>>>> REPLACE
+\`\`\`
+
+切勿捏造文件内容。分析工具返回的实际内容，并在继续之前等待响应 (OBSERVATION)。`;
+
+function getAgentDefaultPrompt(agentId: string, lang: string): string {
+  const isEs = lang === "es";
+  const isZh = lang === "zh";
+  if (agentId === "developer") {
+    return isEs ? DEVELOPER_SYSTEM_ES : (isZh ? DEVELOPER_SYSTEM_ZH : DEVELOPER_SYSTEM_EN);
+  }
+  if (agentId === "researcher") {
+    return isEs ? RESEARCHER_SYSTEM_ES : (isZh ? RESEARCHER_SYSTEM_ZH : RESEARCHER_SYSTEM_EN);
+  }
+  return isEs ? FILE_SPECIALIST_SYSTEM_ES : (isZh ? FILE_SPECIALIST_SYSTEM_ZH : FILE_SPECIALIST_SYSTEM_EN);
+}
+
+const WELCOME_MESSAGES: Record<string, string> = {
+  es: "DiffusionGemma está instalado y listo para generar respuestas localmente.",
+  en: "DiffusionGemma is installed and ready to generate responses locally.",
+  zh: "DiffusionGemma 已安装，已准备好在本地生成回答。"
+};
+
+const welcomeSet = new Set(Object.values(WELCOME_MESSAGES));
 
 function SuperAgentPanel({
   steps,
@@ -1702,7 +1929,10 @@ function parseModelResponseJS(raw: string) {
 
 function App() {
   const [engineKind, setEngineKind] = useState<EngineKind>("diffusion");
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const lang = (localStorage.getItem("app-language") as any) || "es";
+    return [{ id: 1, role: "assistant", content: WELCOME_MESSAGES[lang] || WELCOME_MESSAGES.es }];
+  });
 
   const conversationTokens = useMemo(() => {
     let total = 0;
@@ -1981,15 +2211,15 @@ function App() {
   useEffect(() => {
     let base = "";
     if (promptEditorAgent === "developer") {
-      base = customDeveloperPrompt || DEVELOPER_SYSTEM;
+      base = customDeveloperPrompt || getAgentDefaultPrompt("developer", language);
     } else if (promptEditorAgent === "researcher") {
-      base = customResearcherPrompt || RESEARCHER_SYSTEM;
+      base = customResearcherPrompt || getAgentDefaultPrompt("researcher", language);
     } else {
-      base = customFileSpecialistPrompt || FILE_SPECIALIST_SYSTEM;
+      base = customFileSpecialistPrompt || getAgentDefaultPrompt("file-specialist", language);
     }
     setTempPromptVal(base);
     setPromptSaveStatus("idle");
-  }, [promptEditorAgent, customDeveloperPrompt, customResearcherPrompt, customFileSpecialistPrompt]);
+  }, [promptEditorAgent, customDeveloperPrompt, customResearcherPrompt, customFileSpecialistPrompt, language]);
 
   const handleSavePrompt = async () => {
     setPromptSaveStatus("saving");
@@ -2014,14 +2244,7 @@ function App() {
   };
 
   const handleRestoreDefaultPrompt = () => {
-    let def = "";
-    if (promptEditorAgent === "developer") {
-      def = DEVELOPER_SYSTEM;
-    } else if (promptEditorAgent === "researcher") {
-      def = RESEARCHER_SYSTEM;
-    } else {
-      def = FILE_SPECIALIST_SYSTEM;
-    }
+    const def = getAgentDefaultPrompt(promptEditorAgent, language);
     setTempPromptVal(def);
     setPromptSaveStatus("idle");
   };
@@ -2088,7 +2311,7 @@ function App() {
       });
       
       if (mappedMsgs.length === 0) {
-        setMessages(initialMessages);
+        setMessages([{ id: 1, role: "assistant", content: WELCOME_MESSAGES[language] }]);
       } else {
         setMessages(mappedMsgs);
       }
@@ -2127,11 +2350,16 @@ function App() {
       const list = await invoke<Conversation[]>("db_get_conversations", { projectId });
       setConversations(list);
       setActiveConversationId(newId);
-      setMessages(initialMessages);
+      
+      const welcomeContent = WELCOME_MESSAGES[language];
+      const localizedInitialMessages = [
+        { id: 1, role: "assistant" as const, content: welcomeContent }
+      ];
+      setMessages(localizedInitialMessages);
       setGeneratedImages([]);
       setSelectedImageId(null);
       
-      for (const msg of initialMessages) {
+      for (const msg of localizedInitialMessages) {
         await invoke("db_add_message", {
           conversationId: newId,
           role: msg.role,
@@ -3108,22 +3336,23 @@ function App() {
           if (isFirstMessage) {
             let systemPrompt = "";
             if (selectedAgent === "developer") {
-              systemPrompt = customDeveloperPrompt || DEVELOPER_SYSTEM;
+              systemPrompt = customDeveloperPrompt || getAgentDefaultPrompt("developer", language);
             } else if (selectedAgent === "researcher") {
-              systemPrompt = customResearcherPrompt || RESEARCHER_SYSTEM;
+              systemPrompt = customResearcherPrompt || getAgentDefaultPrompt("researcher", language);
             } else if (selectedAgent === "file-specialist") {
-              systemPrompt = customFileSpecialistPrompt || FILE_SPECIALIST_SYSTEM;
+              systemPrompt = customFileSpecialistPrompt || getAgentDefaultPrompt("file-specialist", language);
             }
             
             if (customTools.length > 0) {
-              systemPrompt += `\n\nTambién tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n`;
+              systemPrompt += `\n\n${translations[language].customToolsHeader}`;
               customTools.forEach((tool) => {
-                systemPrompt += `- TOOL: ${tool.name} <argumentos> (${tool.description})\n`;
+                const argsPlaceholder = translations[language].customToolsArgs;
+                systemPrompt += `- TOOL: ${tool.name} ${argsPlaceholder} (${tool.description})\n`;
               });
-              systemPrompt += `\nPara llamar a una herramienta personalizada, escribe: TOOL: <nombre> <argumentos> en una nueva línea y espera la respuesta (OBSERVATION).`;
+              systemPrompt += translations[language].customToolsInstruction;
             }
 
-            promptToSend = `${systemPrompt}\n\n[Mensaje del usuario]:\n${cleanPrompt}`;
+            promptToSend = `${systemPrompt}\n\n${translations[language].userMessageTag}\n${cleanPrompt}`;
           }
         }
       }
@@ -3939,12 +4168,13 @@ function App() {
             )}
 
             <div className="message-list">
-              {messages.map((message) =>
-                message.role === "system" ? (
+              {messages.map((message) => {
+                const finalContent = welcomeSet.has(message.content) ? WELCOME_MESSAGES[language] : message.content;
+                return message.role === "system" ? (
                   <div className="system-notice-container" key={message.id}>
                     <div className="system-notice-icon">⚙️</div>
                     <div className="system-notice-content">
-                      <strong>Optimización de Contexto:</strong> {message.content}
+                      <strong>{translations[language].contextOptimization}</strong> {message.content}
                     </div>
                   </div>
                 ) : message.role === "user" ? (
@@ -3972,8 +4202,8 @@ function App() {
                               <span />
                             </span>
                             <span>
-                              Pensando
-                              {elapsedSeconds > 0 ? ` durante ${elapsedSeconds} s` : ""}
+                              {translations[language].thinking}
+                              {elapsedSeconds > 0 ? translations[language].thinkingDuration.replace("{s}", String(elapsedSeconds)) : ""}
                             </span>
                           </div>
                           {message.diffusionSteps && message.diffusionSteps.length > 0 && (
@@ -3989,9 +4219,9 @@ function App() {
                                }
                              />
                            )}
-                          {message.content && (
+                          {finalContent && (
                             <div className="streaming-content" style={{ marginTop: "14px" }}>
-                              <MarkdownMessage content={message.content} />
+                              <MarkdownMessage content={finalContent} />
                             </div>
                           )}
                         </>
@@ -4002,7 +4232,7 @@ function App() {
                               <summary>
                                 <span className="summary-dot" aria-hidden="true" />
                                 <span>
-                                  Proceso de difusión · {message.diffusionSteps.length} pasos
+                                  {translations[language].diffusionProcess.replace("{steps}", String(message.diffusionSteps.length))}
                                 </span>
                                 <ChevronIcon />
                               </summary>
@@ -4026,15 +4256,15 @@ function App() {
                             />
                           )}
                           <MarkdownMessage
-                            content={message.content}
+                            content={finalContent}
                             error={message.error}
                           />
                         </>
                       )}
                     </div>
                   </article>
-                ),
-              )}
+                );
+              })}
             </div>
           </div>
         </div>
