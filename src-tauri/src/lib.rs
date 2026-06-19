@@ -1607,6 +1607,15 @@ fn db_delete_conversation(conversation_id: i64, state: State<'_, DbState>) -> Re
 }
 
 #[tauri::command]
+fn db_delete_messages(ids: Vec<i64>, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    for id in ids {
+        conn.execute("DELETE FROM messages WHERE id = ?", [id]).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn db_update_conversation_title(
     conversation_id: i64,
     title: String,
@@ -1787,7 +1796,7 @@ fn handle_api_request(mut request: tiny_http::Request, app: AppHandle) -> Result
         for msg in messages {
             let role = msg.get("role").and_then(|r| r.as_str()).unwrap_or("user");
             let content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("");
-            if role == "user" {
+            if role == "user" || role == "system" {
                 prompt.push_str(&format!("<start_of_turn>user\n{}<end_of_turn>\n", content));
             } else {
                 prompt.push_str(&format!("<start_of_turn>model\n{}<end_of_turn>\n", content));
@@ -1894,6 +1903,175 @@ fn handle_api_request(mut request: tiny_http::Request, app: AppHandle) -> Result
     add_cors_headers(&mut response);
     let _ = request.respond(response);
     Ok(())
+}
+
+fn tokenize(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect::<String>()
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .filter(|s| s.len() > 1)
+        .collect()
+}
+
+fn collect_files_recursive(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if name.starts_with('.')
+                    || name == "node_modules"
+                    || name == "target"
+                    || name == "dist"
+                    || name == "build"
+                    || name == "out"
+                    || name == ".tauri"
+                {
+                    continue;
+                }
+                collect_files_recursive(&path, files);
+            } else if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if [
+                        "rs", "js", "ts", "jsx", "tsx", "py", "json", "css", "html",
+                        "cpp", "h", "toml", "md", "txt", "yaml", "yml", "sql"
+                    ].contains(&ext_lower.as_str()) {
+                        files.push(path);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct SearchResult {
+    path: String,
+    score: f32,
+    lines: Vec<(usize, String)>,
+}
+
+#[tauri::command]
+fn search_project_code(query: String, path: String) -> Result<String, String> {
+    let root = Path::new(&path);
+    if !root.is_dir() {
+        return Err(format!("El directorio de búsqueda no existe: {}", path));
+    }
+
+    let query_tokens = tokenize(&query);
+    if query_tokens.is_empty() {
+        return Ok("Consulta vacía o sin términos válidos.".to_string());
+    }
+
+    let mut files = Vec::new();
+    collect_files_recursive(root, &mut files);
+
+    if files.is_empty() {
+        return Ok("No se encontraron archivos de código para buscar.".to_string());
+    }
+
+    let total_docs = files.len();
+    let mut docs_data = Vec::new();
+    
+    let mut docs_with_token = std::collections::HashMap::new();
+    for token in &query_tokens {
+        docs_with_token.insert(token.clone(), 0);
+    }
+
+    for file_path in &files {
+        if let Ok(content) = std::fs::read_to_string(file_path) {
+            let doc_tokens = tokenize(&content);
+            let mut token_counts = std::collections::HashMap::new();
+            for token in &doc_tokens {
+                if query_tokens.contains(token) {
+                    *token_counts.entry(token.clone()).or_insert(0) += 1;
+                }
+            }
+
+            for (token, count) in &token_counts {
+                if *count > 0 {
+                    if let Some(c) = docs_with_token.get_mut(token) {
+                        *c += 1;
+                    }
+                }
+            }
+
+            docs_data.push((file_path.clone(), doc_tokens.len(), token_counts, content));
+        }
+    }
+
+    let mut idfs = std::collections::HashMap::new();
+    for (token, count) in docs_with_token {
+        let idf = ((total_docs as f32) / (1.0 + count as f32)).ln().max(0.1);
+        idfs.insert(token, idf);
+    }
+
+    let mut results = Vec::new();
+
+    for (file_path, doc_len, token_counts, content) in docs_data {
+        let mut score = 0.0;
+        for (token, count) in &token_counts {
+            let tf = (*count as f32) / (doc_len as f32).max(1.0);
+            let idf = idfs.get(token).copied().unwrap_or(0.1);
+            score += tf * idf;
+        }
+
+        if score > 0.0 {
+            let mut matching_lines = Vec::new();
+            for (i, line) in content.lines().enumerate() {
+                let line_lower = line.to_lowercase();
+                let mut matches_any = false;
+                for token in &query_tokens {
+                    if line_lower.contains(token) {
+                        matches_any = true;
+                        break;
+                    }
+                }
+                if matches_any {
+                    matching_lines.push((i + 1, line.trim().to_string()));
+                    if matching_lines.len() >= 5 {
+                        break;
+                    }
+                }
+            }
+
+            results.push(SearchResult {
+                path: file_path.strip_prefix(root).unwrap_or(&file_path).to_string_lossy().into_owned(),
+                score,
+                lines: matching_lines,
+            });
+        }
+    }
+
+    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    if results.is_empty() {
+        return Ok("No se encontraron coincidencias en los archivos del proyecto.".to_string());
+    }
+
+    let mut output = format!(
+        "Búsqueda de código local para: \"{}\"\nResultados principales (mostrando hasta 5 archivos):\n\n",
+        query
+    );
+
+    for (rank, res) in results.iter().take(5).enumerate() {
+        output.push_str(&format!(
+            "{}. Archivo: {} (Relevancia: {:.4})\n",
+            rank + 1,
+            res.path,
+            res.score
+        ));
+        for (line_num, line_text) in &res.lines {
+            output.push_str(&format!("   L{}: {}\n", line_num, line_text));
+        }
+        output.push('\n');
+    }
+
+    Ok(output)
 }
 
 #[tauri::command]
@@ -2392,12 +2570,14 @@ pub fn run() {
             get_default_image_paths,
             parse_png_metadata,
             read_local_file,
+            search_project_code,
             list_local_directory,
             db_get_conversations,
             db_create_conversation,
             db_get_messages,
             db_add_message,
             db_delete_conversation,
+            db_delete_messages,
             db_update_conversation_title,
             db_get_images,
             db_add_image,

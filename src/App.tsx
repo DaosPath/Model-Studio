@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./App.css";
 
-type Role = "user" | "assistant";
+type Role = "user" | "assistant" | "system";
 type EngineKind = "diffusion" | "llm" | "image";
 
 type SuperAgentStep = {
@@ -390,6 +390,7 @@ TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
 TOOL: cd <ruta_relativa_o_absoluta>
 TOOL: run_command <comando_de_consola>
+TOOL: search_code <consulta_de_palabras_clave>
 
 TOOL: write_file <ruta_relativa_o_absoluta>
 [Seguido inmediatamente de un bloque de código Markdown con el contenido del archivo]
@@ -423,6 +424,9 @@ const sub = (a, b) => a - b;
 >>>>>>> REPLACE
 \`\`\`
 
+Ejemplo para buscar código (usa esto para encontrar funciones, clases o variables rápidamente):
+TOOL: search_code inicializar base de datos
+
 Espera siempre la respuesta (OBSERVATION) antes de emitir tu siguiente paso o razonamiento.`;
 
 const RESEARCHER_SYSTEM = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.
@@ -432,6 +436,7 @@ TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
 TOOL: cd <ruta_relativa_o_absoluta>
 TOOL: run_command <comando_de_consola>
+TOOL: search_code <consulta_de_palabras_clave>
 TOOL: run_python
 [Seguido de un bloque de código python para procesar datos, hacer análisis estadísticos o graficar. Los gráficos PNG generados aparecerán automáticamente en el chat]
 
@@ -450,6 +455,7 @@ TOOL: read_file <ruta_relativa_o_absoluta>
 TOOL: list_dir <ruta_relativa_o_absoluta>
 TOOL: cd <ruta_relativa_o_absoluta>
 TOOL: run_command <comando_de_consola>
+TOOL: search_code <consulta_de_palabras_clave>
 TOOL: write_file <ruta_relativa_o_absoluta>
 TOOL: patch_file <ruta_relativa_o_absoluta>
 
@@ -460,7 +466,6 @@ contenido
 \`\`\`
 
 Formato para patch_file:
-TOOL: patch_file ruta/archivo.txt
 \`\`\`diff
 <<<<<<< SEARCH
 existente
@@ -1310,6 +1315,15 @@ function parseModelResponseJS(raw: string) {
 function App() {
   const [engineKind, setEngineKind] = useState<EngineKind>("diffusion");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+
+  const conversationTokens = useMemo(() => {
+    let total = 0;
+    for (const msg of messages) {
+      total += estimateTokens(msg.content);
+    }
+    return total;
+  }, [messages]);
+
   const [chatMode, setChatMode] = useState<"chat" | "agent" | "super-agent">("chat");
   const [selectedAgent, setSelectedAgent] = useState<"developer" | "researcher" | "file-specialist">("developer");
   const [expandedPanels, setExpandedPanels] = useState<Record<number, boolean>>({});
@@ -1563,6 +1577,15 @@ function App() {
   async function selectConversation(id: number) {
     if (running) return;
     setActiveConversationId(id);
+    if (modelStatus === "ready") {
+      try {
+        await invoke("stop_model");
+        setModelStatus("stopped");
+        setLogs((current) => [...current, `[sistema] Modelo detenido para cambiar de conversación.`]);
+      } catch (e) {
+        console.error("Error stopping model on conversation change:", e);
+      }
+    }
     try {
       const dbMsgs = await invoke<any[]>("db_get_messages", { conversationId: id });
       const mappedMsgs: Message[] = dbMsgs.map((m) => {
@@ -1766,6 +1789,7 @@ function App() {
           const matchWriteFile = trimmed.match(/^TOOL:\s*write_file\s+(.+)$/i);
           const matchPatchFile = trimmed.match(/^TOOL:\s*patch_file\s+(.+)$/i);
           const matchRunPython = trimmed.match(/^TOOL:\s*run_python/i);
+          const matchSearchCode = trimmed.match(/^TOOL:\s*search_code\s+(.+)$/i);
 
           if (matchReadFile) {
             pendingToolCall.current = { type: "read_file", argument: matchReadFile[1].trim() };
@@ -1781,6 +1805,8 @@ function App() {
             pendingToolCall.current = { type: "patch_file", argument: matchPatchFile[1].trim() };
           } else if (matchRunPython) {
             pendingToolCall.current = { type: "run_python", argument: "" };
+          } else if (matchSearchCode) {
+            pendingToolCall.current = { type: "search_code", argument: matchSearchCode[1].trim() };
           } else {
             const matchCustom = trimmed.match(/^TOOL:\s*([a-zA-Z0-9_-]+)(?:\s+(.+))?$/i);
             if (matchCustom) {
@@ -1838,6 +1864,144 @@ function App() {
     };
   }, []);
 
+  function estimateTokens(content: string): number {
+    return Math.ceil(content.length / 4);
+  }
+
+  function formatConversationHistory(messagesList: Message[]): string {
+    let prompt = "";
+    for (const msg of messagesList) {
+      if (msg.role === "user" || msg.role === "system") {
+        let content = msg.content;
+        if (msg.role === "system") {
+          content = `[Resumen del historial anterior: ${msg.content}]`;
+        }
+        prompt += `<start_of_turn>user\n${content}<end_of_turn>\n`;
+      } else {
+        prompt += `<start_of_turn>model\n${msg.content}<end_of_turn>\n`;
+      }
+    }
+    return prompt;
+  }
+
+  async function optimizeContextIfRequired(conversationId: number, currentMessages: Message[]) {
+    let totalEstimated = 0;
+    for (const msg of currentMessages) {
+      totalEstimated += estimateTokens(msg.content);
+    }
+
+    if (totalEstimated <= 3000) {
+      return;
+    }
+
+    if (currentMessages.length < 6) {
+      return;
+    }
+
+    setLogs((current) => [
+      ...current,
+      `[sistema] Optimización de contexto iniciada (Token Saver). Consumo estimado: ${totalEstimated} tokens.`,
+    ]);
+
+    try {
+      const middleMessages = currentMessages.slice(1, -4);
+
+      if (middleMessages.length < 2) return;
+
+      let textToSummarize = "";
+      for (const msg of middleMessages) {
+        textToSummarize += `${msg.role === "user" ? "Usuario" : "Asistente"}: ${msg.content}\n\n`;
+      }
+
+      // Detener el modelo para liberar VRAM si está en ejecución
+      if (modelStatus === "ready") {
+        await invoke("stop_model");
+        setModelStatus("stopped");
+        setLogs((current) => [...current, `[sistema] Deteniendo modelo temporalmente para liberar memoria GPU...`]);
+      }
+
+      setLogs((current) => [...current, `[sistema] Generando resumen de mensajes intermedios...`]);
+
+      const summaryPrompt = `Resume la siguiente conversación de programación de forma concisa en un solo párrafo, detallando qué se logró, qué decisiones se tomaron y cuál es el estado actual. Sé breve y estructurado:\n\n${textToSummarize}\n\nResumen:`;
+
+      const summaryResult = await invoke<GenerationResult>("generate", {
+        request: {
+          runner_path: runnerPath,
+          model_path: modelPath,
+          prompt: summaryPrompt,
+          gpu_layers: gpuLayers,
+          max_tokens: 512,
+          max_steps: 0,
+          is_diffusion: false,
+          cfg_scale: null,
+          t_min: null,
+          t_max: null,
+          entropy_bound: null,
+          stability: null,
+          confidence: null,
+        },
+      });
+
+      const summary = summaryResult.answer.trim();
+      if (!summary) {
+        throw new Error("Resumen vacío generado por el modelo.");
+      }
+
+      setLogs((current) => [...current, `[sistema] Resumen generado con éxito. Actualizando base de datos...`]);
+
+      // Eliminar los mensajes intermedios de la base de datos
+      const idsToDelete = middleMessages.map(m => m.id);
+      await invoke("db_delete_messages", { ids: idsToDelete });
+
+      // Añadir el mensaje de resumen del sistema en la base de datos
+      await invoke<number>("db_add_message", {
+        conversationId,
+        role: "system",
+        content: summary,
+        thinking: null,
+        durationMs: null,
+        diffusionStepsJson: null,
+      });
+
+      // Recargar los mensajes en el frontend
+      const dbMsgs = await invoke<any[]>("db_get_messages", { conversationId });
+      const mappedMsgs: Message[] = dbMsgs.map((m) => {
+        let diffusionSteps: DiffusionProgress[] = [];
+        let superAgentSteps: SuperAgentStep[] = [];
+        if (m.diffusion_steps_json) {
+          try {
+            const parsed = JSON.parse(m.diffusion_steps_json);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              if (parsed[0] && typeof parsed[0] === "object" && "id" in parsed[0]) {
+                superAgentSteps = parsed as SuperAgentStep[];
+              } else {
+                diffusionSteps = parsed as DiffusionProgress[];
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing diffusion steps JSON:", e);
+          }
+        }
+        return {
+          id: m.id,
+          role: m.role as Role,
+          content: m.content,
+          thinking: m.thinking || undefined,
+          durationMs: m.duration_ms || undefined,
+          diffusionSteps: diffusionSteps.length > 0 ? diffusionSteps : undefined,
+          superAgentSteps: superAgentSteps.length > 0 ? superAgentSteps : undefined,
+        };
+      });
+
+      setMessages(mappedMsgs);
+      setLogs((current) => [...current, `[sistema] Contexto optimizado con éxito. El modelo se reiniciará con el contexto comprimido en tu próximo mensaje.`]);
+
+    } catch (e) {
+      console.error("Error en Token Saver:", e);
+      setLogs((current) => [...current, `[error] Falló la optimización de contexto: ${e}`]);
+    }
+  }
+
   async function finishAndSaveMessage(msgId: number, target: Message) {
     const raw = target.content;
     const parsed = parseModelResponseJS(raw);
@@ -1869,6 +2033,23 @@ function App() {
           };
         })
       );
+
+      const updatedMessages = messagesRef.current.map((msg) => {
+        if (msg.id !== msgId) return msg;
+        return {
+          ...msg,
+          id: dbId,
+          content: answer,
+          thinking: thinking || undefined,
+          pending: false,
+          diffusionSteps: finalSteps,
+        };
+      });
+      setTimeout(() => {
+        if (activeConversationId !== null) {
+          optimizeContextIfRequired(activeConversationId, updatedMessages);
+        }
+      }, 500);
     } catch (error) {
       console.error("Error al guardar mensaje en DB:", error);
       setMessages((current) =>
@@ -2044,6 +2225,13 @@ function App() {
             } else {
               resultStr = `\nOBSERVATION: Error al parsear el código Python. Asegúrate de incluir el script dentro de un bloque de código Markdown después de TOOL: run_python.`;
             }
+          } else if (tool.type === "search_code") {
+            const commandCwd = cwd || ".";
+            const searchRes = await invoke<string>("search_project_code", {
+              query: tool.argument,
+              path: commandCwd,
+            });
+            resultStr = `\nOBSERVATION:\n${searchRes}`;
           } else {
             const foundTool = customToolsRef.current.find(t => t.name.toLowerCase() === tool.type.toLowerCase());
             if (foundTool) {
@@ -2271,6 +2459,7 @@ function App() {
         setExpandedPanels((current) => ({ ...current, [assistantId]: true }));
 
         // Ensure model is loaded persistently
+        const isSuperAgentStartingFresh = (modelStatus !== "ready");
         if (modelStatus !== "ready") {
           setLogs((current) => [
             ...current.slice(-199),
@@ -2340,7 +2529,12 @@ function App() {
             });
           });
 
-          await invoke("send_interactive_prompt", { prompt: step.prompt });
+          let stepPrompt = step.prompt;
+          if (step.id === "analyzer" && isSuperAgentStartingFresh && messages.length > 0) {
+            const history = formatConversationHistory(messages);
+            stepPrompt = `${history}<start_of_turn>user\n${step.prompt}<end_of_turn>\n<start_of_turn>model\n`;
+          }
+          await invoke("send_interactive_prompt", { prompt: stepPrompt });
           await finishedPromise;
 
           setMessages((current) =>
@@ -2377,6 +2571,20 @@ function App() {
               };
             })
           );
+
+          const updatedMessages = messagesRef.current.map((msg) => {
+            if (msg.id !== assistantId) return msg;
+            return {
+              ...msg,
+              id: dbId,
+              pending: false,
+            };
+          });
+          setTimeout(() => {
+            if (activeConversationId !== null) {
+              optimizeContextIfRequired(activeConversationId, updatedMessages);
+            }
+          }, 500);
         }
 
       } catch (err) {
@@ -2406,24 +2614,30 @@ function App() {
 
     // Normal or Agent Mode
     try {
+      const isStartingFresh = (modelStatus !== "ready");
       let promptToSend = cleanPrompt;
       if (chatMode === "agent") {
-        const isFirstMessage = messages.filter((m) => m.role === "user").length === 0;
-        if (isFirstMessage) {
-          let systemPrompt = "";
-          if (selectedAgent === "developer") systemPrompt = DEVELOPER_SYSTEM;
-          else if (selectedAgent === "researcher") systemPrompt = RESEARCHER_SYSTEM;
-          else if (selectedAgent === "file-specialist") systemPrompt = FILE_SPECIALIST_SYSTEM;
-          
-          if (customTools.length > 0) {
-            systemPrompt += `\n\nTambién tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n`;
-            customTools.forEach((tool) => {
-              systemPrompt += `- TOOL: ${tool.name} <argumentos> (${tool.description})\n`;
-            });
-            systemPrompt += `\nPara llamar a una herramienta personalizada, escribe: TOOL: <nombre> <argumentos> en una nueva línea y espera la respuesta (OBSERVATION).`;
-          }
+        if (isStartingFresh && messages.length > 0) {
+          const history = formatConversationHistory(messages);
+          promptToSend = `${history}<start_of_turn>user\n${cleanPrompt}<end_of_turn>\n<start_of_turn>model\n`;
+        } else {
+          const isFirstMessage = messages.filter((m) => m.role === "user").length === 0;
+          if (isFirstMessage) {
+            let systemPrompt = "";
+            if (selectedAgent === "developer") systemPrompt = DEVELOPER_SYSTEM;
+            else if (selectedAgent === "researcher") systemPrompt = RESEARCHER_SYSTEM;
+            else if (selectedAgent === "file-specialist") systemPrompt = FILE_SPECIALIST_SYSTEM;
+            
+            if (customTools.length > 0) {
+              systemPrompt += `\n\nTambién tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n`;
+              customTools.forEach((tool) => {
+                systemPrompt += `- TOOL: ${tool.name} <argumentos> (${tool.description})\n`;
+              });
+              systemPrompt += `\nPara llamar a una herramienta personalizada, escribe: TOOL: <nombre> <argumentos> en una nueva línea y espera la respuesta (OBSERVATION).`;
+            }
 
-          promptToSend = `${systemPrompt}\n\n[Mensaje del usuario]:\n${cleanPrompt}`;
+            promptToSend = `${systemPrompt}\n\n[Mensaje del usuario]:\n${cleanPrompt}`;
+          }
         }
       }
 
@@ -2567,6 +2781,24 @@ function App() {
                 : message,
             ),
           );
+
+          const updatedMessages = messagesRef.current.map((msg) => {
+            if (msg.id !== assistantId) return msg;
+            return {
+              ...msg,
+              id: dbId,
+              content: answer,
+              thinking: thinking || undefined,
+              durationMs: result.duration_ms,
+              pending: false,
+              diffusionSteps: finalSteps,
+            };
+          });
+          setTimeout(() => {
+            if (activeConversationId !== null) {
+              optimizeContextIfRequired(activeConversationId, updatedMessages);
+            }
+          }, 500);
         } catch (error) {
           const errorContent = `No se pudo completar la generación. ${String(error)}`;
           let errorDbId = assistantId;
@@ -3020,30 +3252,47 @@ function App() {
       <section className="chat">
         {currentWorkDir && (
           <div className="current-path-indicator">
-            <span className="current-path-icon">📂</span>
-            <span className="current-path-label">Directorio actual:</span>
-            <code className="current-path-code">{currentWorkDir}</code>
-            {activeConversation?.current_directory && (
-              <button
-                type="button"
-                className="reset-path-btn"
-                onClick={async () => {
-                  if (running) return;
-                  try {
-                    await invoke("db_update_conversation_directory", { conversationId: activeConversationId, directory: null });
-                    setConversations(current =>
-                      current.map(c => c.id === activeConversationId ? { ...c, current_directory: null } : c)
-                    );
-                    setLogs(current => [...current, "[sistema] Directorio de trabajo restablecido a la raíz del proyecto"]);
-                  } catch (e) {
-                    console.error("Error resetting path:", e);
-                  }
-                }}
-                title="Restablecer a la raíz del proyecto"
-              >
-                Restablecer
-              </button>
-            )}
+            <div className="current-path-left" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span className="current-path-icon">📂</span>
+              <span className="current-path-label">Directorio actual:</span>
+              <code className="current-path-code">{currentWorkDir}</code>
+              {activeConversation?.current_directory && (
+                <button
+                  type="button"
+                  className="reset-path-btn"
+                  onClick={async () => {
+                    if (running) return;
+                    try {
+                      await invoke("db_update_conversation_directory", { conversationId: activeConversationId, directory: null });
+                      setConversations(current =>
+                        current.map(c => c.id === activeConversationId ? { ...c, current_directory: null } : c)
+                      );
+                      setLogs(current => [...current, "[sistema] Directorio de trabajo restablecido a la raíz del proyecto"]);
+                    } catch (e) {
+                      console.error("Error resetting path:", e);
+                    }
+                  }}
+                  title="Restablecer a la raíz del proyecto"
+                >
+                  Restablecer
+                </button>
+              )}
+            </div>
+            <div className="token-saver-indicator" title="Consumo estimado de tokens del contexto de esta conversación">
+              <span className="token-saver-icon">⚡</span>
+              <span className="token-saver-text">
+                {conversationTokens.toLocaleString()} / 3,000 tokens
+              </span>
+              <div className="token-saver-bar-outer">
+                <div 
+                  className="token-saver-bar-inner" 
+                  style={{ 
+                    width: `${Math.min((conversationTokens / 3000) * 100, 100)}%`,
+                    backgroundColor: conversationTokens > 2400 ? "var(--accent)" : conversationTokens > 1800 ? "#eab308" : "#22c55e"
+                  }} 
+                />
+              </div>
+            </div>
           </div>
         )}
         <div className="conversation" ref={conversationRef}>
@@ -3079,7 +3328,14 @@ function App() {
 
             <div className="message-list">
               {messages.map((message) =>
-                message.role === "user" ? (
+                message.role === "system" ? (
+                  <div className="system-notice-container" key={message.id}>
+                    <div className="system-notice-icon">⚙️</div>
+                    <div className="system-notice-content">
+                      <strong>Optimización de Contexto:</strong> {message.content}
+                    </div>
+                  </div>
+                ) : message.role === "user" ? (
                   <article className="message user" key={message.id}>
                     <div className="user-bubble">{message.content}</div>
                   </article>

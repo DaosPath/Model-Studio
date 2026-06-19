@@ -3786,6 +3786,7 @@ summary:focus-visible {
 .current-path-indicator {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--border-soft);
@@ -4341,4 +4342,96 @@ summary:focus-visible {
   border: 1px solid var(--border-soft);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* ====== Token Saver Header Tracker ====== */
+.token-saver-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg-2);
+  padding: 4px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+}
+
+.token-saver-icon {
+  font-size: 12px;
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.token-saver-text {
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.token-saver-bar-outer {
+  width: 60px;
+  height: 5px;
+  background: var(--bg-0);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+
+.token-saver-bar-inner {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* ====== System Notice Notification Banner ====== */
+.system-notice-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px auto;
+  padding: 12px 20px;
+  width: 90%;
+  max-width: 800px;
+  background: rgba(129, 140, 248, 0.04);
+  border: 1px solid rgba(129, 140, 248, 0.15);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease;
+}
+
+.system-notice-icon {
+  font-size: 16px;
+  animation: pulse 2s infinite ease-in-out;
+  color: #818cf8;
+  filter: drop-shadow(0 0 6px rgba(129, 140, 248, 0.3));
+}
+
+.system-notice-content {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+.system-notice-content strong {
+  color: #818cf8;
+  font-weight: 700;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
 }
