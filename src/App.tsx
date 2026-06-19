@@ -428,6 +428,328 @@ function MarkdownMessage({
   );
 }
 
+const translations: Record<string, Record<string, string>> = {
+  es: {
+    settingsTitle: "Configuración General",
+    languageLabel: "Idioma de la Aplicación",
+    secTextLlm: "1. Texto (LLM Autoregresivo)",
+    secDiffusionLlm: "2. LLM de Difusión (Discreta)",
+    secImage: "3. Imagen (Difusión Visual)",
+    runner: "Ruta del Runner",
+    model: "Ruta del Modelo",
+    gpuLayers: "Capas GPU",
+    maxTokens: "Tokens Máximos",
+    cfgScale: "Escala CFG",
+    stability: "Estabilidad",
+    tMin: "t_min (Temp Mín)",
+    tMax: "t_max (Temp Máx)",
+    entropyBound: "Límite de Entropía",
+    confidence: "Parada (Confianza)",
+    imageRunner: "Runner de Imagen",
+    imageModel: "Modelo de Imagen",
+    loraDir: "Directorio de LoRAs",
+    save: "Guardar",
+    close: "Cerrar",
+    brandSub: "Inferencia local",
+    engine: "Motor",
+    engineTextDiff: "Texto (Difusión)",
+    engineLlm: "LLM (Autoregresivo)",
+    engineImage: "Imagen",
+    gpuDetected: "GPU Detectada",
+    gpuNone: "Sin GPU",
+    verify: "Verificar",
+    stop: "Detener",
+    active: "Activo",
+    inactive: "Inactivo",
+    loading: "Cargando…",
+    chatsTab: "Chats",
+    filesTab: "Archivos",
+    promptsTab: "Prompts",
+    projectLabel: "Proyecto / Espacio",
+    globalProject: "Global (Sin Proyecto)",
+    recentLabel: "Recientes",
+    localNote: "Todo se procesa localmente",
+    apiServer: "Servidor API",
+    customPrompts: "System Prompts",
+    customPromptsSub: "Personaliza las directrices internas de cada agente.",
+    selectAgent: "Seleccionar Agente",
+    agentDev: "👨‍💻 Programador (Developer)",
+    agentRes: "🔍 Investigador (Researcher)",
+    agentFile: "📂 Especialista de Archivos (File Specialist)",
+    sysInstructions: "Instrucciones del Sistema",
+    restore: "Restaurar",
+    saved: "¡Guardado!",
+    saving: "Guardando...",
+    error: "Error",
+    savePrompt: "Guardar Prompt",
+    applyBtn: "📥 Aplicar",
+    copyBtn: "Copiar",
+    copiedBtn: "Copiado",
+    newChat: "Nueva conversación",
+    operatingMode: "Modo Operativo",
+    modeChat: "Chat",
+    modeAgent: "Agente",
+    modeSuper: "Súper",
+    addProjectTitle: "Añadir proyecto local (carpeta)",
+    deleteProjectTitle: "Eliminar proyecto",
+    renameConv: "Renombrar conversación",
+    deleteConv: "Eliminar conversación",
+    writePromptPlaceholder: "Escribe el system prompt aquí...",
+    emptyLogs: "Sin eventos.",
+    startModel: "Iniciar",
+    stopModel: "Detener",
+    killCommand: "Detener",
+    clearConsole: "Limpiar",
+    consoleEmpty: "Consola vacía. Los comandos que ejecute el agente aparecerán aquí en tiempo real.",
+    composerPlaceholderReady: "Escribe un mensaje para DiffusionGemma…",
+    composerPlaceholderThinking: "DiffusionGemma está pensando…",
+    hintEnter: "enviar",
+    hintNewLine: "nueva línea",
+    imagePromptPlaceholder: "Describe la imagen que quieres generar…",
+    imageNegativePromptPlaceholder: "Prompt negativo (opcional): lo que NO quieres ver",
+    imageGenerateBtn: "Generar",
+    imageGeneratingText: "Generando imagen…",
+    imageStepText: "Paso",
+    imageEmptyCanvasTitle: "Tu lienzo está vacío",
+    imageEmptyCanvasText: "Escribe un prompt arriba y pulsa Generar para crear una imagen localmente.",
+    imageModelPlaceholder: "Ruta al modelo .gguf o .safetensors",
+    imageLoraDirPlaceholder: "Ej: C:\\ComfyUI\\models\\loras",
+    imageRunnerHint: "Configura un runner de generación de imágenes (ej. stable-diffusion.cpp) y la ruta a un modelo de difusión visual. El runner debe aceptar:",
+    panelTitleImage: "Imagen",
+    panelTitleExecution: "Ejecución",
+    stopModelVram: "Detener modelo (Liberar VRAM)",
+    startModelVram: "Iniciar modelo (Mantener cargado en VRAM)",
+    gpuNotDetected: "GPU no detectada",
+    diagnosticsTitle: "Actualizar diagnóstico",
+    send: "Enviar",
+    cancel: "Cancelar",
+    createProject: "Crear Proyecto",
+    projectName: "Nombre del Proyecto",
+    projectLocalPath: "Ruta Local de la Carpeta",
+    createProjectTitle: "Crear Nuevo Proyecto",
+    addToolTitle: "Crear Nueva Herramienta",
+    toolNameLabel: "Nombre de la Herramienta (solo letras, números, _ o -)",
+    descriptionLabel: "Descripción",
+    commandTemplateLabel: "Plantilla de Comando Shell (usa {{arg}} para inyectar argumentos)",
+    addToolBtn: "Agregar Herramienta",
+    existingToolsTitle: "Herramientas Existentes",
+    noCustomTools: "No hay herramientas personalizadas creadas."
+  },
+  en: {
+    settingsTitle: "General Settings",
+    languageLabel: "Application Language",
+    secTextLlm: "1. Text (Autoregressive LLM)",
+    secDiffusionLlm: "2. Diffusion LLM (Discrete)",
+    secImage: "3. Image (Visual Diffusion)",
+    runner: "Runner Path",
+    model: "Model Path",
+    gpuLayers: "GPU Layers",
+    maxTokens: "Max Tokens",
+    cfgScale: "CFG Scale",
+    stability: "Stability",
+    tMin: "t_min (Min Temp)",
+    tMax: "t_max (Max Temp)",
+    entropyBound: "Entropy Bound",
+    confidence: "Stop (Confidence)",
+    imageRunner: "Image Runner",
+    imageModel: "Image Model",
+    loraDir: "LoRA Directory",
+    save: "Save",
+    close: "Close",
+    brandSub: "Local inference",
+    brandLogo: "Logo",
+    engine: "Engine",
+    engineTextDiff: "Text (Diffusion)",
+    engineLlm: "LLM (Autoregressive)",
+    engineImage: "Image",
+    gpuDetected: "GPU Detected",
+    gpuNone: "No GPU",
+    verify: "Verify",
+    stop: "Stop",
+    active: "Active",
+    inactive: "Stopped",
+    loading: "Loading…",
+    chatsTab: "Chats",
+    filesTab: "Files",
+    promptsTab: "Prompts",
+    projectLabel: "Project / Workspace",
+    globalProject: "Global (No Project)",
+    recentLabel: "Recent",
+    localNote: "All processed locally",
+    apiServer: "API Server",
+    customPrompts: "System Prompts",
+    customPromptsSub: "Customize the internal guidelines for each agent.",
+    selectAgent: "Select Agent",
+    agentDev: "👨‍💻 Developer",
+    agentRes: "🔍 Researcher",
+    agentFile: "📂 File Specialist",
+    sysInstructions: "System Instructions",
+    restore: "Restore",
+    saved: "Saved!",
+    saving: "Saving...",
+    error: "Error",
+    savePrompt: "Save Prompt",
+    applyBtn: "📥 Apply",
+    copyBtn: "Copy",
+    copiedBtn: "Copied",
+    newChat: "New conversation",
+    operatingMode: "Operating Mode",
+    modeChat: "Chat",
+    modeAgent: "Agent",
+    modeSuper: "Super",
+    addProjectTitle: "Add local project (folder)",
+    deleteProjectTitle: "Delete project",
+    renameConv: "Rename conversation",
+    deleteConv: "Delete conversation",
+    writePromptPlaceholder: "Write the system prompt here...",
+    emptyLogs: "No events.",
+    startModel: "Start",
+    stopModel: "Stop",
+    killCommand: "Stop",
+    clearConsole: "Clear",
+    consoleEmpty: "Empty console. Commands executed by the agent will appear here in real time.",
+    composerPlaceholderReady: "Type a message for DiffusionGemma…",
+    composerPlaceholderThinking: "DiffusionGemma is thinking…",
+    hintEnter: "send",
+    hintNewLine: "new line",
+    imagePromptPlaceholder: "Describe the image you want to generate…",
+    imageNegativePromptPlaceholder: "Negative prompt (optional): what you DO NOT want to see",
+    imageGenerateBtn: "Generate",
+    imageGeneratingText: "Generating image…",
+    imageStepText: "Step",
+    imageEmptyCanvasTitle: "Your canvas is empty",
+    imageEmptyCanvasText: "Write a prompt above and press Generate to create an image locally.",
+    imageModelPlaceholder: "Path to .gguf or .safetensors model",
+    imageLoraDirPlaceholder: "e.g., C:\\ComfyUI\\models\\loras",
+    imageRunnerHint: "Configure an image generation runner (e.g. stable-diffusion.cpp) and the path to a visual diffusion model. The runner must accept:",
+    panelTitleImage: "Image",
+    panelTitleExecution: "Execution",
+    stopModelVram: "Stop model (Free VRAM)",
+    startModelVram: "Start model (Keep loaded in VRAM)",
+    gpuNotDetected: "GPU not detected",
+    diagnosticsTitle: "Refresh diagnostics",
+    send: "Send",
+    cancel: "Cancel",
+    createProject: "Create Project",
+    projectName: "Project Name",
+    projectLocalPath: "Local Folder Path",
+    createProjectTitle: "Create New Project",
+    addToolTitle: "Create New Agent Tool",
+    toolNameLabel: "Tool Name (letters, numbers, _ or - only)",
+    descriptionLabel: "Description",
+    commandTemplateLabel: "Shell Command Template (use {{arg}} to inject arguments)",
+    addToolBtn: "Add Tool",
+    existingToolsTitle: "Existing Tools",
+    noCustomTools: "No custom tools created."
+  },
+  zh: {
+    settingsTitle: "常规设置",
+    languageLabel: "应用语言",
+    secTextLlm: "1. 文本 (自回归 LLM)",
+    secDiffusionLlm: "2. 扩散 LLM (离散)",
+    secImage: "3. 图像 (视觉扩散)",
+    runner: "运行器路径",
+    model: "模型路径",
+    gpuLayers: "GPU 层数",
+    maxTokens: "最大 Token 数",
+    cfgScale: "CFG 比例",
+    stability: "稳定性",
+    tMin: "t_min (最低温度)",
+    tMax: "t_max (最高温度)",
+    entropyBound: "熵边界",
+    confidence: "停止置信度",
+    imageRunner: "图像运行器",
+    imageModel: "图像模型",
+    loraDir: "LoRA 目录",
+    save: "保存",
+    close: "关闭",
+    brandSub: "本地推理",
+    engine: "引擎",
+    engineTextDiff: "文本 (扩散)",
+    engineLlm: "LLM (自回归)",
+    engineImage: "图像",
+    gpuDetected: "检测到 GPU",
+    gpuNone: "无 GPU",
+    verify: "验证",
+    stop: "停止",
+    active: "活动",
+    inactive: "停止",
+    loading: "加载中…",
+    chatsTab: "聊天",
+    filesTab: "文件",
+    promptsTab: "提示词",
+    projectLabel: "项目 / 空间",
+    globalProject: "全局 (无项目)",
+    recentLabel: "最近",
+    localNote: "所有处理均在本地进行",
+    apiServer: "API 服务器",
+    customPrompts: "系统提示词",
+    customPromptsSub: "为每个智能体自定义内部准则。",
+    selectAgent: "选择智能体",
+    agentDev: "👨‍💻 程序员 (Developer)",
+    agentRes: "🔍 研究员 (Researcher)",
+    agentFile: "📂 文件专家 (File Specialist)",
+    sysInstructions: "系统指令",
+    restore: "恢复默认",
+    saved: "已保存！",
+    saving: "保存中...",
+    error: "错误",
+    savePrompt: "保存提示词",
+    applyBtn: "📥 应用",
+    copyBtn: "复制",
+    copiedBtn: "已复制",
+    newChat: "新建对话",
+    operatingMode: "运行模式",
+    modeChat: "聊天",
+    modeAgent: "智能体",
+    modeSuper: "超级",
+    addProjectTitle: "添加本地项目 (文件夹)",
+    deleteProjectTitle: "删除项目",
+    renameConv: "重命名对话",
+    deleteConv: "删除对话",
+    writePromptPlaceholder: "在此处编写系统提示词...",
+    emptyLogs: "无事件。",
+    startModel: "启动",
+    stopModel: "停止",
+    killCommand: "停止",
+    clearConsole: "清除",
+    consoleEmpty: "控制台为空。智能体执行的命令将实时显示在这里。",
+    composerPlaceholderReady: "给 DiffusionGemma 发送消息…",
+    composerPlaceholderThinking: "DiffusionGemma 正在思考…",
+    hintEnter: "发送",
+    hintNewLine: "换行",
+    imagePromptPlaceholder: "描述你想要生成的图像…",
+    imageNegativePromptPlaceholder: "反向提示词 (可选)：你不想看到的内容",
+    imageGenerateBtn: "生成",
+    imageGeneratingText: "正在生成图像…",
+    imageStepText: "步骤",
+    imageEmptyCanvasTitle: "你的画布是空的",
+    imageEmptyCanvasText: "在上方输入提示词并点击“生成”以在本地创建图像。",
+    imageModelPlaceholder: "模型 .gguf 或 .safetensors 的路径",
+    imageLoraDirPlaceholder: "例如: C:\\ComfyUI\\models\\loras",
+    imageRunnerHint: "配置图像生成运行器 (例如 stable-diffusion.cpp) 和视觉扩散模型的路径。运行器必须接受:",
+    panelTitleImage: "图像",
+    panelTitleExecution: "运行",
+    stopModelVram: "停止模型 (释放 VRAM)",
+    startModelVram: "启动模型 (保存至 VRAM 中)",
+    gpuNotDetected: "未检测到 GPU",
+    diagnosticsTitle: "更新诊断",
+    send: "发送",
+    cancel: "取消",
+    createProject: "创建项目",
+    projectName: "项目名称",
+    projectLocalPath: "本地文件夹路径",
+    createProjectTitle: "创建新项目",
+    addToolTitle: "创建新智能体工具",
+    toolNameLabel: "工具名称 (仅限字母、数字、_ 或 -)",
+    descriptionLabel: "描述",
+    commandTemplateLabel: "Shell 命令模板 (使用 {{arg}} 注入参数)",
+    addToolBtn: "添加工具",
+    existingToolsTitle: "现有工具",
+    noCustomTools: "没有创建自定义工具。"
+  }
+};
+
 const DEVELOPER_SYSTEM = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.
 
 Puedes navegar, explorar, escribir y modificar el espacio de trabajo local usando las siguientes herramientas (escríbelas exactamente en una línea nueva):
@@ -884,6 +1206,7 @@ function ImageStudio({
   generatedImages,
   selectedImageId, setSelectedImageId,
   onGenerate, onStop,
+  language,
 }: {
   imagePrompt: string;
   setImagePrompt: (v: string) => void;
@@ -906,6 +1229,7 @@ function ImageStudio({
   setSelectedImageId: (v: number | null) => void;
   onGenerate: () => void;
   onStop: () => void;
+  language: "es" | "en" | "zh";
 }) {
   const selectedImage = generatedImages.find((img) => img.id === selectedImageId);
   const progressPercent = imageProgress && imageProgress.total_steps > 0
@@ -919,7 +1243,7 @@ function ImageStudio({
           <textarea
             value={imagePrompt}
             onChange={(e) => setImagePrompt(e.target.value)}
-            placeholder="Describe la imagen que quieres generar…"
+            placeholder={translations[language].imagePromptPlaceholder}
             rows={2}
             disabled={imageGenerating}
             aria-label="Prompt de imagen"
@@ -928,7 +1252,7 @@ function ImageStudio({
             type="text"
             value={negativePrompt}
             onChange={(e) => setNegativePrompt(e.target.value)}
-            placeholder="Prompt negativo (opcional): lo que NO quieres ver"
+            placeholder={translations[language].imageNegativePromptPlaceholder}
             disabled={imageGenerating}
             aria-label="Prompt negativo"
             className="negative-prompt-input"
@@ -938,7 +1262,7 @@ function ImageStudio({
           {imageGenerating ? (
             <button type="button" className="button danger" onClick={onStop}>
               <StopIcon />
-              Detener
+              {translations[language].stop}
             </button>
           ) : (
             <button
@@ -948,7 +1272,7 @@ function ImageStudio({
               disabled={!imagePrompt.trim()}
             >
               <SparkleIcon />
-              Generar
+              {translations[language].imageGenerateBtn}
             </button>
           )}
         </div>
@@ -1004,14 +1328,14 @@ function ImageStudio({
               </div>
             )}
             <div className="generating-info">
-              <strong>Generando imagen…</strong>
+              <strong>{translations[language].imageGeneratingText}</strong>
               {imageProgress && (
                 <>
                   <div className="generating-progress">
                     <span style={{ width: `${progressPercent}%` }} />
                   </div>
                   <span className="generating-step">
-                    Paso {imageProgress.step}/{imageProgress.total_steps} · {progressPercent}%
+                    {translations[language].imageStepText} {imageProgress.step}/{imageProgress.total_steps} · {progressPercent}%
                   </span>
                 </>
               )}
@@ -1022,7 +1346,7 @@ function ImageStudio({
             <img src={`data:image/png;base64,${selectedImage.base64}`} alt={selectedImage.prompt} />
             <div className="image-preview-meta">
               <span>{selectedImage.width}×{selectedImage.height}</span>
-              <span>{selectedImage.steps} pasos</span>
+              <span>{selectedImage.steps} {language === "es" ? "pasos" : language === "en" ? "steps" : "步"}</span>
               <span>CFG {selectedImage.guidance}</span>
               <span>seed {selectedImage.seed}</span>
               <span>{(selectedImage.durationMs / 1000).toFixed(1)}s</span>
@@ -1033,8 +1357,8 @@ function ImageStudio({
             <div className="empty-orb" aria-hidden="true">
               <ImageIcon />
             </div>
-            <h2>Tu lienzo está vacío</h2>
-            <p>Escribe un prompt arriba y pulsa <strong>Generar</strong> para crear una imagen localmente.</p>
+            <h2>{translations[language].imageEmptyCanvasTitle}</h2>
+            <p>{translations[language].imageEmptyCanvasText}</p>
           </div>
         )}
       </div>
@@ -1447,6 +1771,14 @@ function App() {
   const [customDeveloperPrompt, setCustomDeveloperPrompt] = useState("");
   const [customResearcherPrompt, setCustomResearcherPrompt] = useState("");
   const [customFileSpecialistPrompt, setCustomFileSpecialistPrompt] = useState("");
+
+  // Pantalla de configuraciones
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [language, setLanguage] = useState<"es" | "en" | "zh">(() => (localStorage.getItem("app-language") as any) || "es");
+
+  useEffect(() => {
+    localStorage.setItem("app-language", language);
+  }, [language]);
 
   // Editor de prompts en barra lateral
   const [promptEditorAgent, setPromptEditorAgent] = useState<"developer" | "researcher" | "file-specialist">("developer");
@@ -3188,7 +3520,7 @@ function App() {
         <div className="topbar-status">
           <span className="gpu-tag" title={`GPU ${status.gpu_vendor || "—"}`}>
             <GpuIcon />
-            {status.gpu_detected ? status.gpu_name : "Sin GPU"}
+            {status.gpu_detected ? status.gpu_name : translations[language].gpuNone}
           </span>
           <span className={`status ${statusKind}`}>
             <i aria-hidden="true" />
@@ -3197,21 +3529,30 @@ function App() {
           {running ? (
             <button className="button danger" onClick={stopGeneration}>
               <StopIcon />
-              Detener
+              {translations[language].stop}
             </button>
           ) : (
             <button className="button secondary" onClick={refreshStatus}>
               <RefreshIcon />
-              Verificar
+              {translations[language].verify}
             </button>
           )}
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => setShowSettingsModal(true)}
+            title={translations[language].settingsTitle}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: "36px", padding: "0 8px", fontSize: "14px", cursor: "pointer" }}
+          >
+            ⚙️
+          </button>
         </div>
       </header>
 
       <aside className="sidebar">
         {/* Project Workspace Selector */}
         <div className="project-workspace-selector">
-          <span className="project-selector-label">Proyecto / Espacio</span>
+          <span className="project-selector-label">{translations[language].projectLabel}</span>
           <div className="project-select-row">
             <select
               className="project-select"
@@ -3222,7 +3563,7 @@ function App() {
               }}
               disabled={running}
             >
-              <option value="">🌐 Global (Sin Proyecto)</option>
+              <option value="">🌐 {translations[language].globalProject}</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   📁 {p.name}
@@ -3234,7 +3575,7 @@ function App() {
               className="add-project-btn"
               onClick={() => setShowProjectModal(true)}
               disabled={running}
-              title="Añadir proyecto local (carpeta)"
+              title={translations[language].addProjectTitle}
             >
               +
             </button>
@@ -3244,7 +3585,7 @@ function App() {
                 className="delete-project-btn"
                 onClick={() => deleteProject(activeProjectId)}
                 disabled={running}
-                title="Eliminar proyecto"
+                title={translations[language].deleteProjectTitle}
               >
                 🗑️
               </button>
@@ -3256,15 +3597,15 @@ function App() {
           className="new-chat"
           onClick={startNewConversation}
           disabled={running}
-          aria-label="Crear conversación nueva"
+          aria-label={translations[language].newChat}
         >
           <span aria-hidden="true">+</span>
-          Nueva conversación
+          {translations[language].newChat}
         </button>
 
         {/* Mode Selector and Agent Selectors */}
         <div className="mode-selector-container">
-          <span className="mode-selector-label">Modo Operativo</span>
+          <span className="mode-selector-label">{translations[language].operatingMode}</span>
           <div className="mode-selector-buttons">
             <button
               type="button"
@@ -3272,7 +3613,7 @@ function App() {
               onClick={() => setChatMode('chat')}
               disabled={running}
             >
-              Chat
+              {translations[language].modeChat}
             </button>
             <button
               type="button"
@@ -3280,7 +3621,7 @@ function App() {
               onClick={() => setChatMode('agent')}
               disabled={running}
             >
-              Agente
+              {translations[language].modeAgent}
             </button>
             <button
               type="button"
@@ -3288,7 +3629,7 @@ function App() {
               onClick={() => setChatMode('super-agent')}
               disabled={running}
             >
-              Súper
+              {translations[language].modeSuper}
             </button>
           </div>
 
@@ -3300,9 +3641,9 @@ function App() {
                 onChange={(e) => setSelectedAgent(e.target.value as any)}
                 disabled={running}
               >
-                <option value="developer">👨‍💻 Programador (Developer)</option>
-                <option value="researcher">🔍 Investigador (Researcher)</option>
-                <option value="file-specialist">📂 Archivos (File Specialist)</option>
+                <option value="developer">{translations[language].agentDev}</option>
+                <option value="researcher">{translations[language].agentRes}</option>
+                <option value="file-specialist">{translations[language].agentFile}</option>
               </select>
             </div>
           )}
@@ -3314,32 +3655,32 @@ function App() {
             type="button"
             className={`sidebar-tab-btn ${activeTab === "chats" ? "active" : ""}`}
             onClick={() => setActiveTab("chats")}
-            title="Mostrar conversaciones recientes"
+            title={translations[language].recentLabel}
           >
-            Chats
+            {translations[language].chatsTab}
           </button>
           <button
             type="button"
             className={`sidebar-tab-btn ${activeTab === "files" ? "active" : ""}`}
             onClick={() => setActiveTab("files")}
-            title="Explorar archivos del proyecto"
+            title={translations[language].filesTab}
           >
-            Archivos
+            {translations[language].filesTab}
           </button>
           <button
             type="button"
             className={`sidebar-tab-btn ${activeTab === "prompts" ? "active" : ""}`}
             onClick={() => setActiveTab("prompts")}
-            title="Personalizar prompts de agentes"
+            title={translations[language].promptsTab}
           >
-            Prompts
+            {translations[language].promptsTab}
           </button>
         </div>
 
         <div style={{ display: activeTab === "chats" ? "flex" : "none", flex: 1, minHeight: 0, flexDirection: "column" }}>
           <nav aria-label="Conversaciones" style={{ flex: 1, overflowY: "auto" }}>
             <p className="nav-label">
-              <span>Recientes</span>
+              <span>{translations[language].recentLabel}</span>
             </p>
             {conversations.map((conv) => {
               const isActive = conv.id === activeConversationId;
@@ -3380,7 +3721,7 @@ function App() {
                       <button
                         type="button"
                         onClick={(e) => startEditingConversation(conv.id, conv.title, e)}
-                        title="Renombrar conversación"
+                        title={translations[language].renameConv}
                         className="conv-action-btn"
                       >
                         <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
@@ -3390,7 +3731,7 @@ function App() {
                       <button
                         type="button"
                         onClick={(e) => deleteConversation(conv.id, e)}
-                        title="Eliminar conversación"
+                        title={translations[language].deleteConv}
                         className="conv-action-btn hover-danger"
                       >
                         <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
@@ -3412,10 +3753,10 @@ function App() {
 
         {activeTab === "prompts" && (
           <div className="prompts-tab-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "0 14px 14px", overflowY: "auto" }}>
-            <h3 style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", color: "var(--muted-2)", margin: "0 0 4px", letterSpacing: "0.05em" }}>System Prompts</h3>
-            <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "16px" }}>Personaliza las directrices internas de cada agente.</p>
+            <h3 style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", color: "var(--muted-2)", margin: "0 0 4px", letterSpacing: "0.05em" }}>{translations[language].customPrompts}</h3>
+            <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "16px" }}>{translations[language].customPromptsSub}</p>
             
-            <label style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px", display: "block" }}>Seleccionar Agente</label>
+            <label style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px", display: "block" }}>{translations[language].selectAgent}</label>
             <select
               value={promptEditorAgent}
               onChange={(e) => setPromptEditorAgent(e.target.value as any)}
@@ -3432,16 +3773,16 @@ function App() {
                 cursor: "pointer"
               }}
             >
-              <option value="developer">👨‍💻 Programador (Developer)</option>
-              <option value="researcher">🔍 Investigador (Researcher)</option>
-              <option value="file-specialist">📂 Especialista de Archivos (File Specialist)</option>
+              <option value="developer">{translations[language].agentDev}</option>
+              <option value="researcher">{translations[language].agentRes}</option>
+              <option value="file-specialist">{translations[language].agentFile}</option>
             </select>
 
-            <label style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px", display: "block" }}>Instrucciones del Sistema</label>
+            <label style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px", display: "block" }}>{translations[language].sysInstructions}</label>
             <textarea
               value={tempPromptVal}
               onChange={(e) => setTempPromptVal(e.target.value)}
-              placeholder="Escribe el system prompt aquí..."
+              placeholder={translations[language].writePromptPlaceholder}
               style={{
                 width: "100%",
                 height: "280px",
@@ -3476,7 +3817,7 @@ function App() {
                 }}
                 className="restore-prompt-btn"
               >
-                Restaurar
+                {translations[language].restore}
               </button>
               <button
                 type="button"
@@ -3499,10 +3840,10 @@ function App() {
                   transition: "background 0.2s"
                 }}
               >
-                {promptSaveStatus === "saving" && "⏳ Guardando..."}
-                {promptSaveStatus === "saved" && "✅ ¡Guardado!"}
-                {promptSaveStatus === "error" && "❌ Error"}
-                {promptSaveStatus === "idle" && "💾 Guardar Prompt"}
+                {promptSaveStatus === "saving" && "⏳ " + translations[language].saving}
+                {promptSaveStatus === "saved" && "✅ " + translations[language].saved}
+                {promptSaveStatus === "error" && "❌ " + translations[language].error}
+                {promptSaveStatus === "idle" && "💾 " + translations[language].savePrompt}
               </button>
             </div>
           </div>
@@ -3510,11 +3851,11 @@ function App() {
         <div className="sidebar-footer">
           <div className="local-note">
             <span className="dot" aria-hidden="true" />
-            Todo se procesa localmente
+            {translations[language].localNote}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--muted)", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.02em", marginTop: "8px" }}>
             <span style={{ position: "relative", width: "8px", height: "8px", borderRadius: "50%", background: "#4f46e5", boxShadow: "0 0 8px #4f46e5", flexShrink: 0 }} />
-            <span>API Server: <code style={{ fontFamily: "Consolas, monospace", background: "rgba(255,255,255,0.06)", padding: "1px 4px", borderRadius: "3px", fontSize: "10px", color: "#818cf8" }}>http://127.0.0.1:1234</code></span>
+            <span>{translations[language].apiServer}: <code style={{ fontFamily: "Consolas, monospace", background: "rgba(255,255,255,0.06)", padding: "1px 4px", borderRadius: "3px", fontSize: "10px", color: "#818cf8" }}>http://127.0.0.1:1234</code></span>
           </div>
         </div>
       </aside>
@@ -3703,7 +4044,7 @@ function App() {
             <div className="terminal-header">
               <div className="terminal-title">
                 <span className="terminal-icon">📟</span>
-                Consola de Procesos
+                {language === "es" ? "Consola de Procesos" : language === "en" ? "Process Console" : "进程控制台"}
               </div>
               <div className="terminal-actions">
                 {terminalActiveId && (
@@ -3713,14 +4054,14 @@ function App() {
                     onClick={async () => {
                       try {
                         await invoke("kill_command", { commandId: terminalActiveId });
-                        setTerminalLogs(current => [...current, "[sistema] --- Proceso cancelado por el usuario ---"]);
+                        setTerminalLogs(current => [...current, `[sistema] --- ${language === "es" ? "Proceso cancelado por el usuario" : language === "en" ? "Process cancelled by user" : "用户已取消进程"} ---`]);
                         setTerminalActiveId(null);
                       } catch (e) {
                         console.error(e);
                       }
                     }}
                   >
-                    Detener
+                    {translations[language].stop}
                   </button>
                 )}
                 <button
@@ -3728,7 +4069,7 @@ function App() {
                   className="terminal-clear-btn"
                   onClick={() => setTerminalLogs([])}
                 >
-                  Limpiar
+                  {translations[language].clearConsole}
                 </button>
                 <button
                   type="button"
@@ -3741,7 +4082,7 @@ function App() {
             </div>
             <div className="terminal-body" ref={terminalBodyRef}>
               {terminalLogs.length === 0 ? (
-                <div className="terminal-empty">Consola vacía. Los comandos que ejecute el agente aparecerán aquí en tiempo real.</div>
+                <div className="terminal-empty">{translations[language].consoleEmpty}</div>
               ) : (
                 terminalLogs.map((log, index) => (
                   <div key={index} className="terminal-line">{log}</div>
@@ -3757,10 +4098,10 @@ function App() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             onKeyDown={handleComposerKey}
-            placeholder={running ? "DiffusionGemma está pensando…" : "Escribe un mensaje para DiffusionGemma…"}
+            placeholder={running ? translations[language].composerPlaceholderThinking : translations[language].composerPlaceholderReady}
             rows={3}
             disabled={running}
-            aria-label="Mensaje para DiffusionGemma"
+            aria-label={translations[language].composerPlaceholderReady}
           />
           <div className="composer-footer">
             <div className="composer-tools">
@@ -3781,12 +4122,12 @@ function App() {
               </button>
             </div>
             <span className="hint">
-              <kbd>Enter</kbd> enviar · <kbd>Shift</kbd>+<kbd>Enter</kbd> nueva línea
+              <kbd>Enter</kbd> {translations[language].hintEnter} · <kbd>Shift</kbd>+<kbd>Enter</kbd> {translations[language].hintNewLine}
             </span>
             {running ? (
               <button type="button" className="button danger" onClick={stopGeneration}>
                 <StopIcon />
-                Detener
+                {translations[language].stop}
               </button>
             ) : (
               <button
@@ -3795,7 +4136,7 @@ function App() {
                 disabled={!prompt.trim() || !status.gpu_detected || !status.runner_exists || !status.model_exists}
               >
                 <SendIcon />
-                Enviar
+                {translations[language].send}
               </button>
             )}
           </div>
@@ -3824,13 +4165,14 @@ function App() {
           setSelectedImageId={setSelectedImageId}
           onGenerate={generateImage}
           onStop={stopImageGeneration}
+          language={language}
         />
       )}
 
       <aside className="diagnostics">
         <section>
           <div className="panel-title">
-            <h2>{engineKind === "image" ? "Imagen" : "Ejecución"}</h2>
+            <h2>{engineKind === "image" ? translations[language].panelTitleImage : translations[language].panelTitleExecution}</h2>
             <div className="panel-actions">
               {engineKind !== "image" && (
                 <button
@@ -3840,28 +4182,28 @@ function App() {
                 disabled={modelStatus === "loading" || running || (modelStatus === "stopped" && !status.gpu_detected)}
                 title={
                   modelStatus === "ready" 
-                    ? "Detener modelo (Liberar VRAM)" 
+                    ? translations[language].stopModelVram 
                     : status.gpu_detected
-                      ? "Iniciar modelo (Mantener cargado en VRAM)"
-                      : "GPU no detectada"
+                      ? translations[language].startModelVram
+                      : translations[language].gpuNotDetected
                 }
               >
                 {modelStatus === "loading" && (
                   <>
                     <span className="ms-dot" />
-                    Cargando
+                    {translations[language].loading}
                   </>
                 )}
                 {modelStatus === "ready" && (
                   <>
                     <span className="ms-dot" />
-                    Activo
+                    {translations[language].active}
                   </>
                 )}
                 {modelStatus === "stopped" && (
                   <>
                     <PowerIcon />
-                    Iniciar
+                    {translations[language].startModel}
                   </>
                 )}
               </button>
@@ -3870,8 +4212,8 @@ function App() {
                 type="button"
                 className="icon-button"
                 onClick={refreshStatus}
-                aria-label="Actualizar diagnóstico"
-                title="Actualizar"
+                aria-label={translations[language].diagnosticsTitle}
+                title={translations[language].verify}
               >
                 <RefreshIcon />
               </button>
@@ -3880,22 +4222,21 @@ function App() {
           {engineKind === "image" ? (
             <>
               <label>
-                Runner de imagen
+                {translations[language].imageRunner}
                 <input value={imageRunnerPath} onChange={(event) => setImageRunnerPath(event.target.value)} />
               </label>
               <label>
-                Modelo de imagen
-                <input value={imageModelPath} onChange={(event) => setImageModelPath(event.target.value)} placeholder="Ruta al modelo .gguf o .safetensors" />
+                {translations[language].imageModel}
+                <input value={imageModelPath} onChange={(event) => setImageModelPath(event.target.value)} placeholder={translations[language].imageModelPlaceholder} />
               </label>
               <label>
-                Directorio de LoRAs
-                <input value={imageLoraDir} onChange={(event) => setImageLoraDir(event.target.value)} placeholder="Ej: C:\ComfyUI\models\loras" />
+                {translations[language].loraDir}
+                <input value={imageLoraDir} onChange={(event) => setImageLoraDir(event.target.value)} placeholder={translations[language].imageLoraDirPlaceholder} />
               </label>
               <div className="image-runner-hint">
                 <p>
-                  Configura un runner de generación de imágenes (ej.
-                  stable-diffusion.cpp) y la ruta a un modelo de difusión
-                  visual. El runner debe aceptar:{" "}
+                  {translations[language].imageRunnerHint}
+                  {" "}
                   <code>-m modelo -p prompt -W ancho -H alto -s pasos -o salida.png</code>
                 </p>
               </div>
@@ -3903,16 +4244,16 @@ function App() {
           ) : (
             <>
           <label>
-            Runner
+            {translations[language].runner}
             <input value={runnerPath} onChange={(event) => setRunnerPath(event.target.value)} />
           </label>
           <label>
-            Modelo
+            {translations[language].model}
             <input value={modelPath} onChange={(event) => setModelPath(event.target.value)} />
           </label>
           <div className="control-row">
             <label>
-              Capas GPU
+              {translations[language].gpuLayers}
               <input
                 type="number"
                 min="0"
@@ -3922,7 +4263,7 @@ function App() {
               />
             </label>
             <label>
-              Tokens
+              {translations[language].maxTokens}
               <input
                 type="number"
                 min="64"
@@ -3935,10 +4276,10 @@ function App() {
           </div>
           
           <details className="advanced-settings-details" style={{ marginTop: "14px" }}>
-            <summary className="advanced-settings-summary" style={{ cursor: "pointer", fontSize: "11px", color: "var(--muted)", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ajustes avanzados</summary>
+            <summary className="advanced-settings-summary" style={{ cursor: "pointer", fontSize: "11px", color: "var(--muted)", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px" }}>{translations[language].settingsTitle}</summary>
             <div className="advanced-settings-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                CFG Scale
+                {translations[language].cfgScale}
                 <input
                   type="number"
                   min="0"
@@ -3950,7 +4291,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                Estabilidad
+                {translations[language].stability}
                 <input
                   type="number"
                   min="1"
@@ -3962,7 +4303,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                t_min (Temp mín)
+                {translations[language].tMin}
                 <input
                   type="number"
                   min="0"
@@ -3974,7 +4315,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                t_max (Temp máx)
+                {translations[language].tMax}
                 <input
                   type="number"
                   min="0"
@@ -3986,7 +4327,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                Límite Entropía
+                {translations[language].entropyBound}
                 <input
                   type="number"
                   min="0"
@@ -3998,7 +4339,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                Parada (conf)
+                {translations[language].confidence}
                 <input
                   type="number"
                   min="0.0001"
@@ -4010,7 +4351,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                Temperatura
+                {language === "es" ? "Temperatura" : language === "en" ? "Temperature" : "温度"}
                 <input
                   type="number"
                   min="0"
@@ -4034,7 +4375,7 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)" }}>
-                Penalización Repet.
+                {language === "es" ? "Penalización Repet." : language === "en" ? "Repeat Penalty" : "重复惩罚"}
                 <input
                   type="number"
                   min="0.5"
@@ -4046,12 +4387,12 @@ function App() {
                 />
               </label>
               <label style={{ fontSize: "11px", color: "var(--muted)", gridColumn: "span 2" }}>
-                Secuencias de parada (separadas por coma)
+                {language === "es" ? "Secuencias de parada (separadas por coma)" : language === "en" ? "Stop sequences (comma-separated)" : "停止序列 (逗号分隔)"}
                 <input
                   type="text"
                   value={stopSequences}
                   onChange={(event) => setStopSequences(event.target.value)}
-                  placeholder="Ej: OBSERVATION:, [Mensaje del usuario]:"
+                  placeholder={language === "es" ? "Ej: OBSERVATION:, [Mensaje del usuario]:" : language === "en" ? "e.g., OBSERVATION:, [User message]:" : "例如：OBSERVATION:, [用户消息]:"}
                   style={{ width: "100%", padding: "5px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)" }}
                 />
               </label>
@@ -4060,7 +4401,7 @@ function App() {
 
           {/* Custom Tools Section */}
           <div className="custom-tools-config-section" style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid var(--border-soft)" }}>
-            <span className="mode-selector-label" style={{ display: "block", marginBottom: "8px" }}>Herramientas de Agente</span>
+            <span className="mode-selector-label" style={{ display: "block", marginBottom: "8px" }}>{language === "es" ? "Herramientas de Agente" : language === "en" ? "Agent Tools" : "智能体工具"}</span>
             <button
               type="button"
               className="manage-tools-btn"
@@ -4081,7 +4422,7 @@ function App() {
                 gap: "6px"
               }}
             >
-              🛠️ Crear / Ver Herramientas
+              🛠️ {language === "es" ? "Crear / Ver Herramientas" : language === "en" ? "Create / View Tools" : "创建 / 查看工具"}
             </button>
           </div>
             </>
@@ -4220,33 +4561,33 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Crear Nuevo Proyecto</h3>
+              <h3>{translations[language].createProjectTitle}</h3>
               <button className="close-modal-btn" onClick={() => setShowProjectModal(false)}>×</button>
             </div>
             <form onSubmit={handleCreateProject} className="modal-form">
               <label>
-                Nombre del Proyecto
+                {translations[language].projectName}
                 <input
                   type="text"
-                  placeholder="ej. Mi Web App"
+                  placeholder={language === "es" ? "ej. Mi Web App" : language === "en" ? "e.g., My Web App" : "例如：我的网页应用"}
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   required
                 />
               </label>
               <label>
-                Ruta Local de la Carpeta
+                {translations[language].projectLocalPath}
                 <input
                   type="text"
-                  placeholder="ej. C:\proyectos\mi-app"
+                  placeholder={language === "es" ? "ej. C:\\proyectos\\mi-app" : language === "en" ? "e.g., C:\\projects\\my-app" : "例如：C:\\projects\\my-app"}
                   value={newProjectPath}
                   onChange={(e) => setNewProjectPath(e.target.value)}
                   required
                 />
               </label>
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowProjectModal(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Crear Proyecto</button>
+                <button type="button" onClick={() => setShowProjectModal(false)}>{translations[language].cancel}</button>
+                <button type="submit" className="btn-primary">{translations[language].createProject}</button>
               </div>
             </form>
           </div>
@@ -4258,51 +4599,51 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content tool-manager-modal">
             <div className="modal-header">
-              <h3>Herramientas de Agente</h3>
+              <h3>{language === "es" ? "Herramientas de Agente" : language === "en" ? "Agent Tools" : "智能体工具"}</h3>
               <button className="close-modal-btn" onClick={() => setShowToolModal(false)}>×</button>
             </div>
             
             <div className="modal-section">
-              <h4>Crear Nueva Herramienta</h4>
+              <h4>{translations[language].addToolTitle}</h4>
               <form onSubmit={handleCreateTool} className="modal-form">
                 <label>
-                  Nombre de la Herramienta (solo letras, números, _ o -)
+                  {translations[language].toolNameLabel}
                   <input
                     type="text"
-                    placeholder="ej. obtener_clima"
+                    placeholder={language === "es" ? "ej. obtener_clima" : language === "en" ? "e.g., get_weather" : "例如：get_weather"}
                     value={newToolName}
                     onChange={(e) => setNewToolName(e.target.value)}
                     required
                   />
                 </label>
                 <label>
-                  Descripción
+                  {translations[language].descriptionLabel}
                   <input
                     type="text"
-                    placeholder="ej. Devuelve el clima actual para una ciudad."
+                    placeholder={language === "es" ? "ej. Devuelve el clima actual para una ciudad." : language === "en" ? "e.g., Returns the current weather for a city." : "例如：返回城市的当前天气。"}
                     value={newToolDescription}
                     onChange={(e) => setNewToolDescription(e.target.value)}
                     required
                   />
                 </label>
                 <label>
-                  Plantilla de Comando Shell (usa {"{{arg}}"} para inyectar argumentos)
+                  {translations[language].commandTemplateLabel}
                   <input
                     type="text"
-                    placeholder="ej. curl -s https://wttr.in/{{arg}}"
+                    placeholder={language === "es" ? "ej. curl -s https://wttr.in/{{arg}}" : language === "en" ? "e.g., curl -s https://wttr.in/{{arg}}" : "例如：curl -s https://wttr.in/{{arg}}"}
                     value={newToolCommandTemplate}
                     onChange={(e) => setNewToolCommandTemplate(e.target.value)}
                     required
                   />
                 </label>
                 <button type="submit" className="btn-primary" style={{ marginTop: "10px" }}>
-                  Agregar Herramienta
+                  {translations[language].addToolBtn}
                 </button>
               </form>
             </div>
 
             <div className="modal-section" style={{ marginTop: "20px", borderTop: "1px solid var(--border-soft)", paddingTop: "14px" }}>
-              <h4>Herramientas Existentes</h4>
+              <h4>{translations[language].existingToolsTitle}</h4>
               <div className="tool-list">
                 {customTools.length > 0 ? (
                   customTools.map((tool) => (
@@ -4316,20 +4657,185 @@ function App() {
                         type="button"
                         onClick={() => handleDeleteTool(tool.id)}
                         style={{ background: "transparent", border: "none", color: "var(--error)", cursor: "pointer", fontSize: "14px" }}
-                        title="Eliminar herramienta"
+                        title={language === "es" ? "Eliminar herramienta" : language === "en" ? "Delete tool" : "删除工具"}
                       >
                         🗑️
                       </button>
                     </div>
                   ))
                 ) : (
-                  <p style={{ fontSize: "11px", color: "var(--muted)" }}>No hay herramientas personalizadas creadas.</p>
+                  <p style={{ fontSize: "11px", color: "var(--muted)" }}>{translations[language].noCustomTools}</p>
                 )}
               </div>
             </div>
             
             <div className="modal-actions" style={{ marginTop: "14px" }}>
-              <button type="button" onClick={() => setShowToolModal(false)}>Cerrar</button>
+              <button type="button" onClick={() => setShowToolModal(false)}>{translations[language].close}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Configuración General */}
+      {showSettingsModal && (
+        <div className="modal-overlay">
+          <div className="modal-content settings-manager-modal" style={{ maxWidth: "600px", width: "90%" }}>
+            <div className="modal-header">
+              <h3>{translations[language].settingsTitle}</h3>
+              <button className="close-modal-btn" onClick={() => setShowSettingsModal(false)}>×</button>
+            </div>
+            
+            <div className="settings-body" style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: "10px", marginTop: "14px" }}>
+              {/* Language Section */}
+              <div className="modal-section" style={{ marginBottom: "20px", borderBottom: "1px solid var(--border-soft)", paddingBottom: "14px" }}>
+                <h4 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: "bold" }}>{translations[language].languageLabel}</h4>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("es")}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: language === "es" ? "2px solid var(--accent)" : "1px solid var(--border)",
+                      background: language === "es" ? "var(--surface)" : "transparent",
+                      color: "var(--fg)",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                      fontSize: "12px"
+                    }}
+                  >
+                    Español (ES)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("en")}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: language === "en" ? "2px solid var(--accent)" : "1px solid var(--border)",
+                      background: language === "en" ? "var(--surface)" : "transparent",
+                      color: "var(--fg)",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                      fontSize: "12px"
+                    }}
+                  >
+                    English (EN)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("zh")}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: language === "zh" ? "2px solid var(--accent)" : "1px solid var(--border)",
+                      background: language === "zh" ? "var(--surface)" : "transparent",
+                      color: "var(--fg)",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                      fontSize: "12px"
+                    }}
+                  >
+                    中文 (ZH)
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 1: Texto/LLM */}
+              <div className="modal-section" style={{ marginBottom: "20px", borderBottom: "1px solid var(--border-soft)", paddingBottom: "14px" }}>
+                <h4 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: "bold", color: "var(--accent)" }}>{translations[language].secTextLlm}</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].runner}
+                    <input value={runnerPath} onChange={(event) => setRunnerPath(event.target.value)} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].model}
+                    <input value={modelPath} onChange={(event) => setModelPath(event.target.value)} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].gpuLayers}
+                    <input type="number" min="0" max="99" value={gpuLayers} onChange={(event) => setGpuLayers(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].maxTokens}
+                    <input type="number" min="64" max="4096" step="64" value={maxTokens} onChange={(event) => setMaxTokens(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    Temperatura
+                    <input type="number" min="0" max="2" step="0.05" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    Top-P
+                    <input type="number" min="0" max="1" step="0.01" value={topP} onChange={(event) => setTopP(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    Penalización Repet.
+                    <input type="number" min="0.5" max="2" step="0.05" value={repeatPenalty} onChange={(event) => setRepeatPenalty(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)", gridColumn: "span 2" }}>
+                    Secuencias de parada (separadas por coma)
+                    <input type="text" value={stopSequences} onChange={(event) => setStopSequences(event.target.value)} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                </div>
+              </div>
+
+              {/* Section 2: LLM de Difusión */}
+              <div className="modal-section" style={{ marginBottom: "20px", borderBottom: "1px solid var(--border-soft)", paddingBottom: "14px" }}>
+                <h4 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: "bold", color: "var(--accent)" }}>{translations[language].secDiffusionLlm}</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].cfgScale}
+                    <input type="number" min="0" max="10" step="0.1" value={cfgScale} onChange={(event) => setCfgScale(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].stability}
+                    <input type="number" min="1" max="10" step="1" value={stability} onChange={(event) => setStability(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].tMin}
+                    <input type="number" min="0" max="2" step="0.05" value={tMin} onChange={(event) => setTMin(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].tMax}
+                    <input type="number" min="0" max="2" step="0.05" value={tMax} onChange={(event) => setTMax(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].entropyBound}
+                    <input type="number" min="0" max="5" step="0.05" value={entropyBound} onChange={(event) => setEntropyBound(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].confidence}
+                    <input type="number" min="0.0001" max="0.1" step="0.001" value={confidence} onChange={(event) => setConfidence(Number(event.target.value))} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                </div>
+              </div>
+
+              {/* Section 3: Imagen */}
+              <div className="modal-section" style={{ marginBottom: "14px" }}>
+                <h4 style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: "bold", color: "var(--accent)" }}>{translations[language].secImage}</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].imageRunner}
+                    <input value={imageRunnerPath} onChange={(event) => setImageRunnerPath(event.target.value)} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                    {translations[language].imageModel}
+                    <input value={imageModelPath} onChange={(event) => setImageModelPath(event.target.value)} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                  <label style={{ fontSize: "11px", color: "var(--muted)", gridColumn: "span 2" }}>
+                    {translations[language].loraDir}
+                    <input value={imageLoraDir} onChange={(event) => setImageLoraDir(event.target.value)} style={{ width: "100%", padding: "6px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)", marginTop: "4px" }} />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: "14px", borderTop: "1px solid var(--border-soft)", paddingTop: "14px" }}>
+              <button type="button" onClick={() => setShowSettingsModal(false)} className="btn-primary" style={{ width: "100%" }}>{translations[language].close}</button>
             </div>
           </div>
         </div>
