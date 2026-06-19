@@ -4202,3 +4202,143 @@ summary:focus-visible {
   text-align: center;
   padding-top: 30px;
 }
+
+/* ====== Code Editor Layout ====== */
+.file-viewer-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-viewer-path {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-2);
+  word-break: break-all;
+}
+
+.file-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-mode-toggle {
+  background: var(--bg-3);
+  border: 1px solid var(--border-soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.editor-mode-toggle:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.editor-mode-toggle.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+  color: var(--accent);
+}
+
+.editor-outer-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--inset);
+}
+
+.editor-main-container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-line-numbers {
+  width: 44px;
+  text-align: right;
+  padding-right: 10px;
+  padding-top: 16px;
+  background: var(--bg-0);
+  border-right: 1px solid var(--border-soft);
+  color: var(--muted-2);
+  user-select: none;
+  overflow-y: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+.editor-line-numbers .line-num {
+  height: 19.2px; /* 12px * 1.6 line-height = 19.2px height */
+  box-sizing: border-box;
+}
+
+.editor-textarea {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  resize: none;
+  outline: none;
+  color: var(--body);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 16px 12px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border-soft);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+
+.save-status-msg {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.editor-save-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.18s ease;
+}
+
+.editor-save-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px var(--accent-glow);
+}
+
+.editor-save-btn:disabled {
+  background: var(--bg-3);
+  color: var(--muted-2);
+  border: 1px solid var(--border-soft);
+  cursor: not-allowed;
+  box-shadow: none;
+}

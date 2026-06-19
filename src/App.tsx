@@ -1026,6 +1026,11 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [viewingFile, setViewingFile] = useState<{ path: string; name: string; content: string } | null>(null);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+
   const fetchTree = async () => {
     if (!rootPath) return;
     setLoading(true);
@@ -1053,8 +1058,41 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
     try {
       const content = await invoke<string>("read_local_file", { path });
       setViewingFile({ path, name, content });
+      setEditedContent(content);
+      setIsEditing(false);
+      setSaveStatus("idle");
     } catch (e) {
       alert("Error al leer el archivo: " + e);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!viewingFile) return;
+    setSaveStatus("saving");
+    try {
+      await invoke("write_local_file", { path: viewingFile.path, content: editedContent });
+      setSaveStatus("saved");
+      setViewingFile(prev => prev ? { ...prev, content: editedContent } : null);
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (e) {
+      console.error(e);
+      setSaveStatus("error");
+      alert("Error al guardar el archivo: " + e);
+    }
+  };
+
+  const handleCloseModal = () => {
+    if (viewingFile && editedContent !== viewingFile.content) {
+      if (!window.confirm("Tienes cambios sin guardar. ¿Seguro que deseas cerrar?")) {
+        return;
+      }
+    }
+    setViewingFile(null);
+  };
+
+  const handleTextareaScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop;
     }
   };
 
@@ -1149,18 +1187,71 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
         <div className="file-viewer-modal">
           <div className="file-viewer-content">
             <div className="file-viewer-header">
-              <h4>{viewingFile.name}</h4>
-              <button 
-                type="button"
-                className="close-modal-btn"
-                onClick={() => setViewingFile(null)}
-              >
-                ✕
-              </button>
+              <div className="file-viewer-title-row">
+                <h4>{viewingFile.name}</h4>
+                <span className="file-viewer-path">{viewingFile.path}</span>
+              </div>
+              <div className="file-viewer-actions">
+                <button
+                  type="button"
+                  className={`editor-mode-toggle ${isEditing ? "active" : ""}`}
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? "Visualizar" : "Editar"}
+                </button>
+                <button 
+                  type="button"
+                  className="close-modal-btn"
+                  onClick={handleCloseModal}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            <pre className="file-viewer-pre">
-              <code>{viewingFile.content}</code>
-            </pre>
+
+            <div className="editor-outer-container">
+              {isEditing ? (
+                <div className="editor-main-container">
+                  <div className="editor-line-numbers" ref={lineNumbersRef}>
+                    {editedContent.split("\n").map((_, i) => (
+                      <div key={i} className="line-num">{i + 1}</div>
+                    ))}
+                  </div>
+                  <textarea
+                    className="editor-textarea"
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    onScroll={handleTextareaScroll}
+                    spellCheck={false}
+                  />
+                </div>
+              ) : (
+                <pre className="file-viewer-pre">
+                  <code>{viewingFile.content}</code>
+                </pre>
+              )}
+            </div>
+
+            {isEditing && (
+              <div className="editor-footer">
+                <span className="save-status-msg">
+                  {saveStatus === "saving" && "⏳ Guardando cambios..."}
+                  {saveStatus === "saved" && "✅ ¡Cambios guardados!"}
+                  {saveStatus === "error" && "❌ Error al guardar"}
+                  {saveStatus === "idle" && editedContent !== viewingFile.content && "⚠️ Cambios sin guardar"}
+                </span>
+                <div className="editor-footer-buttons">
+                  <button
+                    type="button"
+                    className="editor-save-btn"
+                    onClick={handleSave}
+                    disabled={saveStatus === "saving" || editedContent === viewingFile.content}
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
