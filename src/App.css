@@ -1333,6 +1333,20 @@ summary:focus-visible {
   background: var(--surface);
 }
 
+.code-header button.apply-code-btn {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  transition: all 0.2s var(--ease-out);
+}
+
+.code-header button.apply-code-btn:hover {
+  color: #fff;
+  background: #10b981;
+  border-color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
 .code-header button svg {
   width: 12px;
   height: 12px;
@@ -4434,4 +4448,10 @@ summary:focus-visible {
     transform: scale(1);
     opacity: 0.8;
   }
+}
+
+.restore-prompt-btn:hover {
+  background: rgba(239, 68, 68, 0.05) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  color: #ef4444 !important;
 }

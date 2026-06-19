@@ -11,6 +11,23 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Prism from "prismjs";
+import "prismjs/themes/prism-tomorrow.css";
+
+// Load languages
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-tsx";
+import "prismjs/components/prism-rust";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-toml";
+import "prismjs/components/prism-yaml";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-cpp";
+import "prismjs/components/prism-c";
+
 import "./App.css";
 
 type Role = "user" | "assistant" | "system";
@@ -328,6 +345,18 @@ function CodeBlock({
   const language = /language-([\w-]+)/.exec(className || "")?.[1];
   const isBlock = Boolean(language) || code.includes("\n");
 
+  const html = useMemo(() => {
+    if (!language) return code;
+    const lang = Prism.languages[language] ? language : null;
+    if (!lang) return code;
+    try {
+      return Prism.highlight(code, Prism.languages[lang], lang);
+    } catch (e) {
+      console.error("Prism error:", e);
+      return code;
+    }
+  }, [code, language]);
+
   if (!isBlock) {
     return (
       <code className="inline-code" {...props}>
@@ -342,19 +371,36 @@ function CodeBlock({
     window.setTimeout(() => setCopied(false), 1600);
   }
 
+  function applyToEditor() {
+    window.dispatchEvent(new CustomEvent("apply-to-editor", { detail: { code } }));
+  }
+
   return (
     <div className="code-block">
       <div className="code-header">
         <span>{language || "Código"}</span>
-        <button type="button" onClick={copyCode} aria-label="Copiar código">
-          <CopyIcon copied={copied} />
-          {copied ? "Copiado" : "Copiar"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button type="button" className="apply-code-btn" onClick={applyToEditor} aria-label="Aplicar al editor">
+            📥 Aplicar
+          </button>
+          <button type="button" onClick={copyCode} aria-label="Copiar código">
+            <CopyIcon copied={copied} />
+            {copied ? "Copiado" : "Copiar"}
+          </button>
+        </div>
       </div>
       <pre>
-        <code className={className} {...props}>
-          {code}
-        </code>
+        {language && Prism.languages[language] ? (
+          <code
+            className={className}
+            dangerouslySetInnerHTML={{ __html: html }}
+            {...props}
+          />
+        ) : (
+          <code className={className} {...props}>
+            {code}
+          </code>
+        )}
       </pre>
     </div>
   );
@@ -1055,6 +1101,24 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
     fetchTree();
   }, [rootPath]);
 
+  useEffect(() => {
+    const handleApply = (event: Event) => {
+      const customEvent = event as CustomEvent<{ code: string }>;
+      const code = customEvent.detail.code;
+      if (!viewingFile) {
+        alert("⚠️ No hay ningún archivo abierto en el editor. Por favor, abre un archivo desde el explorador de la barra lateral para poder aplicar el código.");
+        return;
+      }
+      setEditedContent(code);
+      setIsEditing(true);
+    };
+
+    window.addEventListener("apply-to-editor", handleApply);
+    return () => {
+      window.removeEventListener("apply-to-editor", handleApply);
+    };
+  }, [viewingFile]);
+
   const toggleFolder = (path: string) => {
     setExpandedFolders(prev => ({ ...prev, [path]: !prev[path] }));
   };
@@ -1342,7 +1406,7 @@ function App() {
   const [editingConversationId, setEditingConversationId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"chats" | "files">("chats");
+  const [activeTab, setActiveTab] = useState<"chats" | "files" | "prompts">("chats");
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalActiveId, setTerminalActiveId] = useState<string | null>(null);
@@ -1372,6 +1436,22 @@ function App() {
   const [tMax, setTMax] = useState(0.8);
   const [entropyBound, setEntropyBound] = useState(0.1);
   const [confidence, setConfidence] = useState(0.005);
+
+  // Hiperparámetros de LLM
+  const [temperature, setTemperature] = useState(0.2);
+  const [topP, setTopP] = useState(0.95);
+  const [repeatPenalty, setRepeatPenalty] = useState(1.1);
+  const [stopSequences, setStopSequences] = useState("OBSERVATION:, [Mensaje del usuario]:");
+
+  // System Prompts personalizados de agentes
+  const [customDeveloperPrompt, setCustomDeveloperPrompt] = useState("");
+  const [customResearcherPrompt, setCustomResearcherPrompt] = useState("");
+  const [customFileSpecialistPrompt, setCustomFileSpecialistPrompt] = useState("");
+
+  // Editor de prompts en barra lateral
+  const [promptEditorAgent, setPromptEditorAgent] = useState<"developer" | "researcher" | "file-specialist">("developer");
+  const [tempPromptVal, setTempPromptVal] = useState("");
+  const [promptSaveStatus, setPromptSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [logs, setLogs] = useState<string[]>([
     "[sistema] Aplicación iniciada",
     "[sistema] Esperando verificación del runner",
@@ -1553,7 +1633,66 @@ function App() {
 
     loadProjects();
     loadCustomTools();
+
+    // Cargar agent prompts personalizados de SQLite
+    invoke<string | null>("db_get_agent_prompt", { agentId: "developer" }).then((p) => {
+      if (p) setCustomDeveloperPrompt(p);
+    }).catch(console.error);
+    invoke<string | null>("db_get_agent_prompt", { agentId: "researcher" }).then((p) => {
+      if (p) setCustomResearcherPrompt(p);
+    }).catch(console.error);
+    invoke<string | null>("db_get_agent_prompt", { agentId: "file-specialist" }).then((p) => {
+      if (p) setCustomFileSpecialistPrompt(p);
+    }).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    let base = "";
+    if (promptEditorAgent === "developer") {
+      base = customDeveloperPrompt || DEVELOPER_SYSTEM;
+    } else if (promptEditorAgent === "researcher") {
+      base = customResearcherPrompt || RESEARCHER_SYSTEM;
+    } else {
+      base = customFileSpecialistPrompt || FILE_SPECIALIST_SYSTEM;
+    }
+    setTempPromptVal(base);
+    setPromptSaveStatus("idle");
+  }, [promptEditorAgent, customDeveloperPrompt, customResearcherPrompt, customFileSpecialistPrompt]);
+
+  const handleSavePrompt = async () => {
+    setPromptSaveStatus("saving");
+    try {
+      await invoke("db_save_agent_prompt", {
+        agentId: promptEditorAgent,
+        prompt: tempPromptVal
+      });
+      if (promptEditorAgent === "developer") {
+        setCustomDeveloperPrompt(tempPromptVal);
+      } else if (promptEditorAgent === "researcher") {
+        setCustomResearcherPrompt(tempPromptVal);
+      } else {
+        setCustomFileSpecialistPrompt(tempPromptVal);
+      }
+      setPromptSaveStatus("saved");
+      setTimeout(() => setPromptSaveStatus("idle"), 2000);
+    } catch (e) {
+      console.error(e);
+      setPromptSaveStatus("error");
+    }
+  };
+
+  const handleRestoreDefaultPrompt = () => {
+    let def = "";
+    if (promptEditorAgent === "developer") {
+      def = DEVELOPER_SYSTEM;
+    } else if (promptEditorAgent === "researcher") {
+      def = RESEARCHER_SYSTEM;
+    } else {
+      def = FILE_SPECIALIST_SYSTEM;
+    }
+    setTempPromptVal(def);
+    setPromptSaveStatus("idle");
+  };
 
   useEffect(() => {
     if (!IS_TAURI) return;
@@ -1939,6 +2078,10 @@ function App() {
           entropy_bound: null,
           stability: null,
           confidence: null,
+          temperature: temperature,
+          top_p: topP,
+          repeat_penalty: repeatPenalty,
+          stop_sequences: stopSequences.split(",").map(s => s.trim()).filter(Boolean),
         },
       });
 
@@ -2403,6 +2546,10 @@ function App() {
           entropyBound: engineKind === "diffusion" ? (entropyBound || null) : null,
           stability: engineKind === "diffusion" ? (stability || null) : null,
           confidence: engineKind === "diffusion" ? (confidence || null) : null,
+          temperature: engineKind !== "diffusion" ? temperature : null,
+          topP: engineKind !== "diffusion" ? topP : null,
+          repeatPenalty: engineKind !== "diffusion" ? repeatPenalty : null,
+          stopSequences: engineKind !== "diffusion" ? stopSequences.split(",").map(s => s.trim()).filter(Boolean) : null,
         });
         setModelStatus("ready");
       } catch (error) {
@@ -2476,6 +2623,10 @@ function App() {
             entropyBound: engineKind === "diffusion" ? (entropyBound || null) : null,
             stability: engineKind === "diffusion" ? (stability || null) : null,
             confidence: engineKind === "diffusion" ? (confidence || null) : null,
+            temperature: engineKind !== "diffusion" ? temperature : null,
+            topP: engineKind !== "diffusion" ? topP : null,
+            repeatPenalty: engineKind !== "diffusion" ? repeatPenalty : null,
+            stopSequences: engineKind !== "diffusion" ? stopSequences.split(",").map(s => s.trim()).filter(Boolean) : null,
           });
           setModelStatus("ready");
         }
@@ -2624,9 +2775,13 @@ function App() {
           const isFirstMessage = messages.filter((m) => m.role === "user").length === 0;
           if (isFirstMessage) {
             let systemPrompt = "";
-            if (selectedAgent === "developer") systemPrompt = DEVELOPER_SYSTEM;
-            else if (selectedAgent === "researcher") systemPrompt = RESEARCHER_SYSTEM;
-            else if (selectedAgent === "file-specialist") systemPrompt = FILE_SPECIALIST_SYSTEM;
+            if (selectedAgent === "developer") {
+              systemPrompt = customDeveloperPrompt || DEVELOPER_SYSTEM;
+            } else if (selectedAgent === "researcher") {
+              systemPrompt = customResearcherPrompt || RESEARCHER_SYSTEM;
+            } else if (selectedAgent === "file-specialist") {
+              systemPrompt = customFileSpecialistPrompt || FILE_SPECIALIST_SYSTEM;
+            }
             
             if (customTools.length > 0) {
               systemPrompt += `\n\nTambién tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n`;
@@ -2677,6 +2832,10 @@ function App() {
           entropyBound: engineKind === "diffusion" ? (entropyBound || null) : null,
           stability: engineKind === "diffusion" ? (stability || null) : null,
           confidence: engineKind === "diffusion" ? (confidence || null) : null,
+          temperature: engineKind !== "diffusion" ? temperature : null,
+          topP: engineKind !== "diffusion" ? topP : null,
+          repeatPenalty: engineKind !== "diffusion" ? repeatPenalty : null,
+          stopSequences: engineKind !== "diffusion" ? stopSequences.split(",").map(s => s.trim()).filter(Boolean) : null,
         });
         setModelStatus("ready");
       }
@@ -2744,6 +2903,10 @@ function App() {
               entropy_bound: engineKind === "diffusion" ? (entropyBound || null) : null,
               stability: engineKind === "diffusion" ? (stability || null) : null,
               confidence: engineKind === "diffusion" ? (confidence || null) : null,
+              temperature: engineKind !== "diffusion" ? temperature : null,
+              top_p: engineKind !== "diffusion" ? topP : null,
+              repeat_penalty: engineKind !== "diffusion" ? repeatPenalty : null,
+              stop_sequences: engineKind !== "diffusion" ? stopSequences.split(",").map(s => s.trim()).filter(Boolean) : null,
             },
           });
           const answer = result.answer.trim() || "La generaci\u00f3n termin\u00f3 sin texto.";
@@ -3163,10 +3326,18 @@ function App() {
           >
             Archivos
           </button>
+          <button
+            type="button"
+            className={`sidebar-tab-btn ${activeTab === "prompts" ? "active" : ""}`}
+            onClick={() => setActiveTab("prompts")}
+            title="Personalizar prompts de agentes"
+          >
+            Prompts
+          </button>
         </div>
 
-        {activeTab === "chats" ? (
-          <nav aria-label="Conversaciones">
+        <div style={{ display: activeTab === "chats" ? "flex" : "none", flex: 1, minHeight: 0, flexDirection: "column" }}>
+          <nav aria-label="Conversaciones" style={{ flex: 1, overflowY: "auto" }}>
             <p className="nav-label">
               <span>Recientes</span>
             </p>
@@ -3233,8 +3404,108 @@ function App() {
               );
             })}
           </nav>
-        ) : (
+        </div>
+
+        <div style={{ display: activeTab === "files" ? "flex" : "none", flex: 1, minHeight: 0, flexDirection: "column" }}>
           <FileExplorer rootPath={currentWorkDir} onSelectFolder={updateWorkDir} />
+        </div>
+
+        {activeTab === "prompts" && (
+          <div className="prompts-tab-container" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: "0 14px 14px", overflowY: "auto" }}>
+            <h3 style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", color: "var(--muted-2)", margin: "0 0 4px", letterSpacing: "0.05em" }}>System Prompts</h3>
+            <p style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "16px" }}>Personaliza las directrices internas de cada agente.</p>
+            
+            <label style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px", display: "block" }}>Seleccionar Agente</label>
+            <select
+              value={promptEditorAgent}
+              onChange={(e) => setPromptEditorAgent(e.target.value as any)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
+                borderRadius: "6px",
+                color: "var(--fg)",
+                marginBottom: "16px",
+                fontSize: "12px",
+                fontWeight: "500",
+                cursor: "pointer"
+              }}
+            >
+              <option value="developer">👨‍💻 Programador (Developer)</option>
+              <option value="researcher">🔍 Investigador (Researcher)</option>
+              <option value="file-specialist">📂 Especialista de Archivos (File Specialist)</option>
+            </select>
+
+            <label style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "6px", display: "block" }}>Instrucciones del Sistema</label>
+            <textarea
+              value={tempPromptVal}
+              onChange={(e) => setTempPromptVal(e.target.value)}
+              placeholder="Escribe el system prompt aquí..."
+              style={{
+                width: "100%",
+                height: "280px",
+                padding: "10px",
+                background: "var(--inset)",
+                border: "1px solid var(--border-soft)",
+                borderRadius: "8px",
+                color: "var(--text-main)",
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                lineHeight: "1.5",
+                resize: "vertical",
+                marginBottom: "16px"
+              }}
+            />
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={handleRestoreDefaultPrompt}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-soft)",
+                  background: "transparent",
+                  color: "var(--text-muted)",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "background 0.2s"
+                }}
+                className="restore-prompt-btn"
+              >
+                Restaurar
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePrompt}
+                disabled={promptSaveStatus === "saving"}
+                style={{
+                  flex: 2,
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: promptSaveStatus === "saved" ? "#10b981" : "var(--primary)",
+                  color: "#fff",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  transition: "background 0.2s"
+                }}
+              >
+                {promptSaveStatus === "saving" && "⏳ Guardando..."}
+                {promptSaveStatus === "saved" && "✅ ¡Guardado!"}
+                {promptSaveStatus === "error" && "❌ Error"}
+                {promptSaveStatus === "idle" && "💾 Guardar Prompt"}
+              </button>
+            </div>
+          </div>
         )}
         <div className="sidebar-footer">
           <div className="local-note">
@@ -3735,6 +4006,52 @@ function App() {
                   step="0.001"
                   value={confidence}
                   onChange={(event) => setConfidence(Number(event.target.value))}
+                  style={{ width: "100%", padding: "5px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)" }}
+                />
+              </label>
+              <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                Temperatura
+                <input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value={temperature}
+                  onChange={(event) => setTemperature(Number(event.target.value))}
+                  style={{ width: "100%", padding: "5px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)" }}
+                />
+              </label>
+              <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                Top-P
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={topP}
+                  onChange={(event) => setTopP(Number(event.target.value))}
+                  style={{ width: "100%", padding: "5px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)" }}
+                />
+              </label>
+              <label style={{ fontSize: "11px", color: "var(--muted)" }}>
+                Penalización Repet.
+                <input
+                  type="number"
+                  min="0.5"
+                  max="2"
+                  step="0.05"
+                  value={repeatPenalty}
+                  onChange={(event) => setRepeatPenalty(Number(event.target.value))}
+                  style={{ width: "100%", padding: "5px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)" }}
+                />
+              </label>
+              <label style={{ fontSize: "11px", color: "var(--muted)", gridColumn: "span 2" }}>
+                Secuencias de parada (separadas por coma)
+                <input
+                  type="text"
+                  value={stopSequences}
+                  onChange={(event) => setStopSequences(event.target.value)}
+                  placeholder="Ej: OBSERVATION:, [Mensaje del usuario]:"
                   style={{ width: "100%", padding: "5px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--fg)" }}
                 />
               </label>

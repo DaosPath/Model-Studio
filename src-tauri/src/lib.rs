@@ -50,6 +50,14 @@ struct GenerateRequest {
     stability: Option<u32>,
     #[serde(default)]
     confidence: Option<f32>,
+    #[serde(default)]
+    temperature: Option<f32>,
+    #[serde(default)]
+    top_p: Option<f32>,
+    #[serde(default)]
+    repeat_penalty: Option<f32>,
+    #[serde(default)]
+    stop_sequences: Option<Vec<String>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -308,6 +316,25 @@ async fn generate(
             }
         }
 
+        if let Some(temp) = request.temperature {
+            args.push("--temp".to_string());
+            args.push(temp.to_string());
+        }
+        if let Some(top_p) = request.top_p {
+            args.push("--top-p".to_string());
+            args.push(top_p.to_string());
+        }
+        if let Some(rep_pen) = request.repeat_penalty {
+            args.push("--repeat-penalty".to_string());
+            args.push(rep_pen.to_string());
+        }
+        if let Some(stops) = &request.stop_sequences {
+            for stop in stops {
+                args.push("--reverse-prompt".to_string());
+                args.push(stop.clone());
+            }
+        }
+
         let mut child = Command::new(&request.runner_path)
             .args(&args)
             .env("DIFFUSION_APP_PROGRESS", "1")
@@ -499,6 +526,10 @@ async fn start_model(
     entropy_bound: Option<f32>,
     stability: Option<u32>,
     confidence: Option<f32>,
+    temperature: Option<f32>,
+    top_p: Option<f32>,
+    repeat_penalty: Option<f32>,
+    stop_sequences: Option<Vec<String>>,
 ) -> Result<(), String> {
     if !Path::new(&runner_path).is_file() {
         return Err(format!("Runner no encontrado: {}", runner_path));
@@ -552,6 +583,25 @@ async fn start_model(
         if let Some(conf) = confidence {
             args.push("--diffusion-eb-confidence".to_string());
             args.push(conf.to_string());
+        }
+
+        if let Some(temp) = temperature {
+            args.push("--temp".to_string());
+            args.push(temp.to_string());
+        }
+        if let Some(top_p_val) = top_p {
+            args.push("--top-p".to_string());
+            args.push(top_p_val.to_string());
+        }
+        if let Some(rep_pen) = repeat_penalty {
+            args.push("--repeat-penalty".to_string());
+            args.push(rep_pen.to_string());
+        }
+        if let Some(stops) = stop_sequences {
+            for stop in stops {
+                args.push("--reverse-prompt".to_string());
+                args.push(stop);
+            }
         }
 
         let mut child = Command::new(&runner_path)
@@ -1616,6 +1666,34 @@ fn db_delete_messages(ids: Vec<i64>, state: State<'_, DbState>) -> Result<(), St
 }
 
 #[tauri::command]
+fn db_get_agent_prompt(agent_id: String, state: State<'_, DbState>) -> Result<Option<String>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT system_prompt FROM agent_prompts WHERE agent_id = ?")
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map([agent_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    if let Some(result) = rows.next() {
+        let val: String = result.map_err(|e| e.to_string())?;
+        Ok(Some(val))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+fn db_save_agent_prompt(agent_id: String, prompt: String, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO agent_prompts (agent_id, system_prompt) VALUES (?, ?)",
+        rusqlite::params![agent_id, prompt],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn db_update_conversation_title(
     conversation_id: i64,
     title: String,
@@ -1962,13 +2040,57 @@ fn search_project_code(query: String, path: String) -> Result<String, String> {
         return Err(format!("El directorio de búsqueda no existe: {}", path));
     }
 
-    let query_tokens = tokenize(&query);
+    let mut target_exts = Vec::new();
+    let mut target_paths = Vec::new();
+    let mut text_terms = Vec::new();
+
+    for word in query.split_whitespace() {
+        if let Some(ext) = word.strip_prefix("ext:") {
+            target_exts.push(ext.to_lowercase());
+        } else if let Some(path_filter) = word.strip_prefix("path:") {
+            target_paths.push(path_filter.to_lowercase());
+        } else {
+            text_terms.push(word.to_string());
+        }
+    }
+
+    let clean_query = text_terms.join(" ");
+    let query_tokens = tokenize(&clean_query);
     if query_tokens.is_empty() {
-        return Ok("Consulta vacía o sin términos válidos.".to_string());
+        return Ok("Ingresa términos de búsqueda junto con los filtros (ej: 'db_add_message ext:rs').".to_string());
     }
 
     let mut files = Vec::new();
     collect_files_recursive(root, &mut files);
+
+    // Aplicar filtros ext: y path: si existen
+    if !target_exts.is_empty() || !target_paths.is_empty() {
+        files.retain(|f| {
+            if !target_exts.is_empty() {
+                if let Some(ext) = f.extension().and_then(|e| e.to_str()) {
+                    if !target_exts.contains(&ext.to_lowercase()) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            if !target_paths.is_empty() {
+                let path_str = f.to_string_lossy().to_lowercase();
+                let mut matches_any = false;
+                for filter in &target_paths {
+                    if path_str.contains(filter) {
+                        matches_any = true;
+                        break;
+                    }
+                }
+                if !matches_any {
+                    return false;
+                }
+            }
+            true
+        });
+    }
 
     if files.is_empty() {
         return Ok("No se encontraron archivos de código para buscar.".to_string());
@@ -2495,6 +2617,14 @@ pub fn run() {
             )?;
 
             conn.execute(
+                "CREATE TABLE IF NOT EXISTS agent_prompts (
+                    agent_id TEXT PRIMARY KEY,
+                    system_prompt TEXT NOT NULL
+                )",
+                [],
+            )?;
+
+            conn.execute(
                 "CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     conversation_id INTEGER NOT NULL,
@@ -2578,6 +2708,8 @@ pub fn run() {
             db_add_message,
             db_delete_conversation,
             db_delete_messages,
+            db_get_agent_prompt,
+            db_save_agent_prompt,
             db_update_conversation_title,
             db_get_images,
             db_add_image,
