@@ -16,6 +16,13 @@ import "./App.css";
 type Role = "user" | "assistant";
 type EngineKind = "diffusion" | "llm" | "image";
 
+type SuperAgentStep = {
+  id: string;
+  name: string;
+  status: "idle" | "running" | "completed" | "failed";
+  output?: string;
+};
+
 type Message = {
   id: number;
   role: Role;
@@ -25,11 +32,28 @@ type Message = {
   pending?: boolean;
   error?: boolean;
   diffusionSteps?: DiffusionProgress[];
+  superAgentSteps?: SuperAgentStep[];
 };
 
 type Conversation = {
   id: number;
   title: string;
+  created_at: string;
+  project_id?: number | null;
+};
+
+type Project = {
+  id: number;
+  name: string;
+  path: string;
+  created_at: string;
+};
+
+type CustomTool = {
+  id: number;
+  name: string;
+  description: string;
+  command_template: string;
   created_at: string;
 };
 
@@ -353,6 +377,66 @@ function MarkdownMessage({
       >
         {content}
       </ReactMarkdown>
+    </div>
+  );
+}
+
+const DEVELOPER_SYSTEM = `Eres un Asistente Programador de Élite (Developer Mode). Tu objetivo es escribir código limpio, eficiente y bien estructurado. Siempre explica tus decisiones de diseño y sigue las mejores prácticas de programación.`;
+
+const RESEARCHER_SYSTEM = `Eres un Asistente Investigador de Élite (Researcher Mode). Tu objetivo es analizar información, buscar hechos, resumir temas complejos y proporcionar respuestas precisas y basadas en datos.`;
+
+const FILE_SPECIALIST_SYSTEM = `Eres un Especialista de Archivos (File Specialist Mode) con acceso al sistema de archivos local a través de herramientas especiales.
+Puedes inspeccionar el espacio de trabajo usando las siguientes herramientas. Para usarlas, debes escribir exactamente el comando en una línea nueva, sin texto antes ni después en esa misma línea:
+
+TOOL: read_file <ruta_absoluta>
+TOOL: list_dir <ruta_absoluta>
+
+Por ejemplo, si necesitas ver el contenido de 'C:\\proyectos\\main.js', escribe exactamente:
+TOOL: read_file C:\\proyectos\\main.js
+
+Y espera a recibir la respuesta (OBSERVATION). No inventes el contenido de los archivos. Analiza el contenido real devuelto por la herramienta.`;
+
+function SuperAgentPanel({
+  steps,
+  messageId,
+  expandedPanels,
+  onToggle,
+}: {
+  steps: SuperAgentStep[];
+  messageId: number;
+  expandedPanels: Record<number, boolean>;
+  onToggle: (id: number) => void;
+}) {
+  const isExpanded = !!expandedPanels[messageId];
+
+  return (
+    <div className="super-agent-panel">
+      <div className="super-agent-header" onClick={() => onToggle(messageId)}>
+        <span>Panel de Súper Agente (Orquestador)</span>
+        <span>{isExpanded ? "▲" : "▼"}</span>
+      </div>
+      {isExpanded && (
+        <div className="super-agent-steps">
+          {steps.map((step) => {
+            return (
+              <div key={step.id} className={`super-agent-step ${step.status}`}>
+                <div className="step-row">
+                  <span className="step-icon">
+                    {step.status === "running" && "⏳"}
+                    {step.status === "completed" && "✅"}
+                    {step.status === "failed" && "❌"}
+                    {step.status === "idle" && "⚪"}
+                  </span>
+                  <span className="step-name">{step.name}</span>
+                </div>
+                {step.output && (
+                  <pre className="step-output">{step.output}</pre>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -848,6 +932,14 @@ function ImageStudio({
   );
 }
 
+function resolvePath(userPath: string, projectCwd: string) {
+  if (!projectCwd) return userPath;
+  const isAbsolute = /^[a-zA-Z]:\\|^[a-zA-Z]:\/|^\/|^\\\\/.test(userPath);
+  if (isAbsolute) return userPath;
+  const separator = projectCwd.endsWith("\\") || projectCwd.endsWith("/") ? "" : "\\";
+  return projectCwd + separator + userPath;
+}
+
 function parseModelResponseJS(raw: string) {
   const clean = (val: string) => val
     .replace(/<\|channel>thought/g, "")
@@ -891,6 +983,19 @@ function parseModelResponseJS(raw: string) {
 function App() {
   const [engineKind, setEngineKind] = useState<EngineKind>("diffusion");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [chatMode, setChatMode] = useState<"chat" | "agent" | "super-agent">("chat");
+  const [selectedAgent, setSelectedAgent] = useState<"developer" | "researcher" | "file-specialist">("developer");
+  const [expandedPanels, setExpandedPanels] = useState<Record<number, boolean>>({});
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
+  const [customTools, setCustomTools] = useState<CustomTool[]>([]);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showToolModal, setShowToolModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectPath, setNewProjectPath] = useState("");
+  const [newToolName, setNewToolName] = useState("");
+  const [newToolDescription, setNewToolDescription] = useState("");
+  const [newToolCommandTemplate, setNewToolCommandTemplate] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [editingConversationId, setEditingConversationId] = useState<number | null>(null);
@@ -931,8 +1036,93 @@ function App() {
     runner_exists: false,
   });
   const activeAssistantId = useRef<number | null>(null);
+  const activeSuperAgentStepId = useRef<string | null>(null);
+  const pendingToolCall = useRef<{ type: string; argument: string } | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const projectsRef = useRef<Project[]>([]);
+  projectsRef.current = projects;
+  
+  const activeProjectIdRef = useRef<number | null>(null);
+  activeProjectIdRef.current = activeProjectId;
+  
+  const customToolsRef = useRef<CustomTool[]>([]);
+  customToolsRef.current = customTools;
+
+  async function loadProjects() {
+    try {
+      const list = await invoke<Project[]>("db_get_projects");
+      setProjects(list);
+    } catch (e) {
+      console.error("Error loading projects:", e);
+    }
+  }
+
+  async function loadCustomTools() {
+    try {
+      const list = await invoke<CustomTool[]>("db_get_custom_tools");
+      setCustomTools(list);
+    } catch (e) {
+      console.error("Error loading custom tools:", e);
+    }
+  }
+
+  async function handleCreateProject(e: FormEvent) {
+    e.preventDefault();
+    const name = newProjectName.trim();
+    const path = newProjectPath.trim();
+    if (!name || !path) return;
+    try {
+      await invoke("db_create_project", { name, path });
+      setNewProjectName("");
+      setNewProjectPath("");
+      setShowProjectModal(false);
+      await loadProjects();
+    } catch (err) {
+      alert(`Error al crear proyecto: ${err}`);
+    }
+  }
+
+  async function deleteProject(id: number) {
+    if (!window.confirm("¿Seguro de que deseas eliminar este proyecto? Los chats vinculados también se perderán.")) return;
+    try {
+      await invoke("db_delete_project", { id });
+      if (activeProjectId === id) {
+        setActiveProjectId(null);
+      }
+      await loadProjects();
+    } catch (err) {
+      alert(`Error al eliminar proyecto: ${err}`);
+    }
+  }
+
+  async function handleCreateTool(e: FormEvent) {
+    e.preventDefault();
+    const name = newToolName.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    const desc = newToolDescription.trim();
+    const template = newToolCommandTemplate.trim();
+    if (!name || !desc || !template) return;
+    try {
+      await invoke("db_create_custom_tool", { name, description: desc, commandTemplate: template });
+      setNewToolName("");
+      setNewToolDescription("");
+      setNewToolCommandTemplate("");
+      await loadCustomTools();
+    } catch (err) {
+      alert(`Error al crear herramienta: ${err}`);
+    }
+  }
+
+  async function handleDeleteTool(id: number) {
+    if (!window.confirm("¿Seguro que deseas eliminar esta herramienta?")) return;
+    try {
+      await invoke("db_delete_custom_tool", { id });
+      await loadCustomTools();
+    } catch (err) {
+      alert(`Error al eliminar herramienta: ${err}`);
+    }
+  }
 
   const [imagePrompt, setImagePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -979,17 +1169,23 @@ function App() {
       setModelStatus(loaded ? "ready" : "stopped");
     });
 
-    loadConversations();
+    loadProjects();
+    loadCustomTools();
   }, []);
 
-  async function loadConversations() {
+  useEffect(() => {
+    if (!IS_TAURI) return;
+    loadConversations(activeProjectId);
+  }, [activeProjectId]);
+
+  async function loadConversations(projectId: number | null = activeProjectId) {
     try {
-      const list = await invoke<Conversation[]>("db_get_conversations");
+      const list = await invoke<Conversation[]>("db_get_conversations", { projectId });
       setConversations(list);
       if (list.length > 0) {
         await selectConversation(list[0].id);
       } else {
-        await createNewConversation("Prueba local");
+        await createNewConversation("Prueba local", projectId);
       }
     } catch (error) {
       console.error("Error al cargar conversaciones:", error);
@@ -1003,9 +1199,17 @@ function App() {
       const dbMsgs = await invoke<any[]>("db_get_messages", { conversationId: id });
       const mappedMsgs: Message[] = dbMsgs.map((m) => {
         let diffusionSteps: DiffusionProgress[] = [];
+        let superAgentSteps: SuperAgentStep[] = [];
         if (m.diffusion_steps_json) {
           try {
-            diffusionSteps = JSON.parse(m.diffusion_steps_json);
+            const parsed = JSON.parse(m.diffusion_steps_json);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              if (parsed[0] && typeof parsed[0] === "object" && "id" in parsed[0]) {
+                superAgentSteps = parsed as SuperAgentStep[];
+              } else {
+                diffusionSteps = parsed as DiffusionProgress[];
+              }
+            }
           } catch (e) {
             console.error("Error parsing diffusion steps JSON:", e);
           }
@@ -1017,6 +1221,7 @@ function App() {
           thinking: m.thinking || undefined,
           durationMs: m.duration_ms || undefined,
           diffusionSteps: diffusionSteps.length > 0 ? diffusionSteps : undefined,
+          superAgentSteps: superAgentSteps.length > 0 ? superAgentSteps : undefined,
         };
       });
       
@@ -1053,11 +1258,11 @@ function App() {
     }
   }
 
-  async function createNewConversation(title: string = "Nueva conversación") {
+  async function createNewConversation(title: string = "Nueva conversación", projectId: number | null = activeProjectId) {
     if (running) return;
     try {
-      const newId = await invoke<number>("db_create_conversation", { title });
-      const list = await invoke<Conversation[]>("db_get_conversations");
+      const newId = await invoke<number>("db_create_conversation", { title, projectId });
+      const list = await invoke<Conversation[]>("db_get_conversations", { projectId });
       setConversations(list);
       setActiveConversationId(newId);
       setMessages(initialMessages);
@@ -1090,13 +1295,13 @@ function App() {
     }
     try {
       await invoke("db_delete_conversation", { conversationId: id });
-      const list = await invoke<Conversation[]>("db_get_conversations");
+      const list = await invoke<Conversation[]>("db_get_conversations", { projectId: activeProjectId });
       setConversations(list);
       if (activeConversationId === id) {
         if (list.length > 0) {
           await selectConversation(list[0].id);
         } else {
-          await createNewConversation("Prueba local");
+          await createNewConversation("Prueba local", activeProjectId);
         }
       }
     } catch (error) {
@@ -1116,7 +1321,7 @@ function App() {
     try {
       await invoke("db_update_conversation_title", { conversationId: id, title: cleanTitle });
       setEditingConversationId(null);
-      const list = await invoke<Conversation[]>("db_get_conversations");
+      const list = await invoke<Conversation[]>("db_get_conversations", { projectId: activeProjectId });
       setConversations(list);
     } catch (error) {
       console.error("Error al renombrar conversación:", error);
@@ -1185,24 +1390,65 @@ function App() {
       if (payload.stream === "stdout") {
         const msgId = activeInteractiveMessageId.current ?? activeAssistantId.current;
         if (msgId !== null) {
-          setMessages((current) =>
-            current.map((msg) => {
-              if (msg.id !== msgId) return msg;
-              const newContent = msg.content ? msg.content + "\n" + payload.line : payload.line;
+          const trimmed = payload.line.trim();
+          const matchReadFile = trimmed.match(/^TOOL:\s*read_file\s+(.+)$/i);
+          const matchListDir = trimmed.match(/^TOOL:\s*list_dir\s+(.+)$/i);
+          const matchRunCommand = trimmed.match(/^TOOL:\s*run_command\s+(.+)$/i);
+          if (matchReadFile) {
+            pendingToolCall.current = { type: "read_file", argument: matchReadFile[1].trim() };
+          } else if (matchListDir) {
+            pendingToolCall.current = { type: "list_dir", argument: matchListDir[1].trim() };
+          } else if (matchRunCommand) {
+            pendingToolCall.current = { type: "run_command", argument: matchRunCommand[1].trim() };
+          } else {
+            const matchCustom = trimmed.match(/^TOOL:\s*([a-zA-Z0-9_-]+)(?:\s+(.+))?$/i);
+            if (matchCustom) {
+              const toolName = matchCustom[1].trim().toLowerCase();
+              const foundTool = customToolsRef.current.find(t => t.name.toLowerCase() === toolName);
+              if (foundTool) {
+                pendingToolCall.current = { type: foundTool.name, argument: (matchCustom[2] || "").trim() };
+              }
+            }
+          }
 
-              // Actualizar el último paso de difusión con el contenido acumulado
-              const steps = msg.diffusionSteps ?? [];
-              const lastStep = steps[steps.length - 1];
-              const nextSteps = lastStep
-                ? [
-                    ...steps.slice(0, -1),
-                    { ...lastStep, text: newContent },
-                  ]
-                : steps;
+          if (activeSuperAgentStepId.current) {
+            const stepId = activeSuperAgentStepId.current;
+            setMessages((current) =>
+              current.map((msg) => {
+                if (msg.id !== msgId) return msg;
+                const steps = msg.superAgentSteps ?? [];
+                const nextSteps = steps.map((s) => {
+                  if (s.id !== stepId) return s;
+                  const newOutput = s.output ? s.output + "\n" + payload.line : payload.line;
+                  return { ...s, output: newOutput };
+                });
+                let newContent = msg.content;
+                if (stepId === "synthesizer") {
+                  newContent = msg.content ? msg.content + "\n" + payload.line : payload.line;
+                }
+                return { ...msg, superAgentSteps: nextSteps, content: newContent };
+              })
+            );
+          } else {
+            setMessages((current) =>
+              current.map((msg) => {
+                if (msg.id !== msgId) return msg;
+                const newContent = msg.content ? msg.content + "\n" + payload.line : payload.line;
 
-              return { ...msg, content: newContent, diffusionSteps: nextSteps };
-            })
-          );
+                // Actualizar el último paso de difusión con el contenido acumulado
+                const steps = msg.diffusionSteps ?? [];
+                const lastStep = steps[steps.length - 1];
+                const nextSteps = lastStep
+                  ? [
+                      ...steps.slice(0, -1),
+                      { ...lastStep, text: newContent },
+                    ]
+                  : steps;
+
+                return { ...msg, content: newContent, diffusionSteps: nextSteps };
+              })
+            );
+          }
         }
       }
     });
@@ -1211,65 +1457,140 @@ function App() {
     };
   }, []);
 
+  async function finishAndSaveMessage(msgId: number, target: Message) {
+    const raw = target.content;
+    const parsed = parseModelResponseJS(raw);
+    const answer = parsed.answer.trim() || "La generación terminó sin texto.";
+    const thinking = parsed.thinking?.trim() || null;
+    const finalSteps = addFinalStep(target.diffusionSteps ?? [], raw);
+    const stepsJson = finalSteps.length > 0 ? JSON.stringify(finalSteps) : null;
+    
+    try {
+      const dbId = await invoke<number>("db_add_message", {
+        conversationId: activeConversationId,
+        role: "assistant",
+        content: answer,
+        thinking: thinking,
+        durationMs: null,
+        diffusionStepsJson: stepsJson,
+      });
+
+      setMessages((current) =>
+        current.map((msg) => {
+          if (msg.id !== msgId) return msg;
+          return {
+            ...msg,
+            id: dbId,
+            content: answer,
+            thinking: thinking || undefined,
+            pending: false,
+            diffusionSteps: finalSteps,
+          };
+        })
+      );
+    } catch (error) {
+      console.error("Error al guardar mensaje en DB:", error);
+      setMessages((current) =>
+        current.map((msg) => {
+          if (msg.id !== msgId) return msg;
+          return {
+            ...msg,
+            pending: false,
+            error: true,
+          };
+        })
+      );
+    }
+    activeInteractiveMessageId.current = null;
+    setRunning(false);
+  }
+
   useEffect(() => {
     if (!IS_TAURI) return;
     const unlisten = listen("generation-finished", async () => {
+      if (activeSuperAgentStepId.current) {
+        // Super agent handles step transitions locally/sequentially
+        return;
+      }
+
       const msgId = activeInteractiveMessageId.current;
       if (msgId === null) return;
 
       const target = messagesRef.current.find((msg) => msg.id === msgId);
-      if (target) {
-        const raw = target.content;
-        const parsed = parseModelResponseJS(raw);
-        const answer = parsed.answer.trim() || "La generaci\u00f3n termin\u00f3 sin texto.";
-        const thinking = parsed.thinking?.trim() || null;
-        const finalSteps = addFinalStep(target.diffusionSteps ?? [], raw);
-        const stepsJson = finalSteps.length > 0 ? JSON.stringify(finalSteps) : null;
-        
-        try {
-          const dbId = await invoke<number>("db_add_message", {
-            conversationId: activeConversationId,
-            role: "assistant",
-            content: answer,
-            thinking: thinking,
-            durationMs: null,
-            diffusionStepsJson: stepsJson,
-          });
+      if (!target) return;
 
-          setMessages((current) =>
-            current.map((msg) => {
-              if (msg.id !== msgId) return msg;
-              return {
-                ...msg,
-                id: dbId,
-                content: answer,
-                thinking: thinking || undefined,
-                pending: false,
-                diffusionSteps: finalSteps,
-              };
-            })
-          );
+      if (chatMode === "agent" && pendingToolCall.current) {
+        const tool = pendingToolCall.current;
+        pendingToolCall.current = null; // reset
+
+        const statusMsg = `\n\n⚙️ [Ejecutando herramienta local: ${tool.type} ${tool.argument}...]`;
+        setMessages((current) =>
+          current.map((msg) => {
+            if (msg.id !== msgId) return msg;
+            return {
+              ...msg,
+              content: msg.content + statusMsg,
+            };
+          })
+        );
+
+        const activeProj = projectsRef.current.find(p => p.id === activeProjectIdRef.current);
+        const cwd = activeProj ? activeProj.path : "";
+
+        let resultStr = "";
+        try {
+          if (tool.type === "read_file") {
+            const resolvedPath = resolvePath(tool.argument, cwd);
+            const content = await invoke<string>("read_local_file", { path: resolvedPath });
+            resultStr = `\nOBSERVATION (Contenido de ${tool.argument}):\n\`\`\`\n${content}\n\`\`\``;
+          } else if (tool.type === "list_dir") {
+            const resolvedPath = resolvePath(tool.argument, cwd);
+            const list = await invoke<string[]>("list_local_directory", { path: resolvedPath });
+            resultStr = `\nOBSERVATION (Archivos en ${tool.argument}):\n${list.join("\n")}`;
+          } else if (tool.type === "run_command") {
+            const commandCwd = cwd || ".";
+            const output = await invoke<string>("run_local_command", { command: tool.argument, cwd: commandCwd });
+            resultStr = `\nOBSERVATION (Resultado del comando):\n\`\`\`\n${output}\n\`\`\``;
+          } else {
+            const foundTool = customToolsRef.current.find(t => t.name.toLowerCase() === tool.type.toLowerCase());
+            if (foundTool) {
+              let cmd = foundTool.command_template;
+              if (cmd.includes("{{") && cmd.includes("}}")) {
+                cmd = cmd.replace(/\{\{[^}]+\}\}/g, tool.argument);
+              } else if (tool.argument) {
+                cmd = cmd + " " + tool.argument;
+              }
+              const commandCwd = cwd || ".";
+              const output = await invoke<string>("run_local_command", { command: cmd, cwd: commandCwd });
+              resultStr = `\nOBSERVATION (Herramienta "${tool.type}" ejecutada):\n\`\`\`\n${output}\n\`\`\``;
+            } else {
+              resultStr = `\nOBSERVATION (Error): Herramienta "${tool.type}" no encontrada.`;
+            }
+          }
         } catch (error) {
-          console.error("Error al guardar mensaje interactivo:", error);
-          setMessages((current) =>
-            current.map((msg) => {
-              if (msg.id !== msgId) return msg;
-              return {
-                ...msg,
-                content: answer,
-                thinking: thinking || undefined,
-                pending: false,
-                diffusionSteps: finalSteps,
-              };
-            })
-          );
+          resultStr = `\nOBSERVATION (Error al ejecutar herramienta): ${error}`;
         }
+
+        setMessages((current) =>
+          current.map((msg) => {
+            if (msg.id !== msgId) return msg;
+            return {
+              ...msg,
+              content: msg.content + resultStr,
+            };
+          })
+        );
+
+        try {
+          await invoke("send_interactive_prompt", { prompt: resultStr });
+        } catch (err) {
+          console.error("Error al reenviar prompt de herramienta:", err);
+          finishAndSaveMessage(msgId, target);
+        }
+        return;
       }
 
-      activeInteractiveMessageId.current = null;
-      setRunning(false);
-      refreshStatus();
-      window.setTimeout(() => textareaRef.current?.focus(), 0);
+      finishAndSaveMessage(msgId, target);
     });
 
     const statusUnlisten = listen<string>("model-status-changed", ({ payload }) => {
@@ -1409,7 +1730,199 @@ function App() {
       return;
     }
 
+    // Super Agent Mode Pipeline
+    if (chatMode === "super-agent") {
+      try {
+        const userDbId = await invoke<number>("db_add_message", {
+          conversationId: activeConversationId,
+          role: "user",
+          content: cleanPrompt,
+          thinking: null,
+          durationMs: null,
+          diffusionStepsJson: null,
+        });
+
+        const assistantId = userDbId + 1;
+        const initialSteps: SuperAgentStep[] = [
+          { id: "analyzer", name: "1. Analista (Analyzer)", status: "idle" },
+          { id: "critic", name: "2. Crítico (Critic)", status: "idle" },
+          { id: "researcher", name: "3. Investigador (Researcher)", status: "idle" },
+          { id: "validator", name: "4. Validador (Validator)", status: "idle" },
+          { id: "synthesizer", name: "5. Sintetizador (Synthesizer)", status: "idle" },
+        ];
+
+        setMessages((current) => [
+          ...current,
+          { id: userDbId, role: "user", content: cleanPrompt },
+          {
+            id: assistantId,
+            role: "assistant",
+            content: "",
+            pending: true,
+            superAgentSteps: initialSteps,
+          },
+        ]);
+        setPrompt("");
+        setRunning(true);
+        setExpandedPanels((current) => ({ ...current, [assistantId]: true }));
+
+        // Ensure model is loaded persistently
+        if (modelStatus !== "ready") {
+          setLogs((current) => [
+            ...current.slice(-199),
+            `[sistema] El modo Súper Agente requiere el modelo en memoria. Iniciando...`,
+          ]);
+          await invoke("start_model", {
+            runnerPath,
+            modelPath,
+            gpuLayers,
+            maxTokens,
+            cfgScale: engineKind === "diffusion" ? (cfgScale || null) : null,
+            tMin: engineKind === "diffusion" ? (tMin || null) : null,
+            tMax: engineKind === "diffusion" ? (tMax || null) : null,
+            entropyBound: engineKind === "diffusion" ? (entropyBound || null) : null,
+            stability: engineKind === "diffusion" ? (stability || null) : null,
+            confidence: engineKind === "diffusion" ? (confidence || null) : null,
+          });
+          setModelStatus("ready");
+        }
+
+        activeInteractiveMessageId.current = assistantId;
+
+        const stepsToRun = [
+          {
+            id: "analyzer",
+            name: "1. Analista (Analyzer)",
+            prompt: `[ROL: Analista] Analiza el problema del usuario: "${cleanPrompt}". Propón 3 hipótesis o enfoques conceptuales de resolución con sus porcentajes de viabilidad estimados.`
+          },
+          {
+            id: "critic",
+            name: "2. Crítico (Critic)",
+            prompt: `[ROL: Crítico] Evalúa los 3 enfoques propuestos por el Analista. Identifica posibles bugs, casos límite, problemas de rendimiento y riesgos de seguridad.`
+          },
+          {
+            id: "researcher",
+            name: "3. Investigador (Researcher)",
+            prompt: `[ROL: Investigador] Aporta información teórica, mejores prácticas de la industria, o referencias relevantes sobre la solución discutida hasta ahora.`
+          },
+          {
+            id: "validator",
+            name: "4. Validador (Validator)",
+            prompt: `[ROL: Validador] Verifica la lógica del código o del razonamiento final a la luz de las críticas e investigaciones previas.`
+          },
+          {
+            id: "synthesizer",
+            name: "5. Sintetizador (Synthesizer)",
+            prompt: `[ROL: Sintetizador] Consolida todo el proceso anterior en una respuesta final pulida, clara y premium para el usuario. Enfócate en dar una solución directa y lista para usar.`
+          }
+        ];
+
+        for (const step of stepsToRun) {
+          activeSuperAgentStepId.current = step.id;
+          setMessages((current) =>
+            current.map((msg) => {
+              if (msg.id !== assistantId) return msg;
+              const nextSteps = (msg.superAgentSteps ?? []).map((s) =>
+                s.id === step.id ? { ...s, status: "running" as const } : s
+              );
+              return { ...msg, superAgentSteps: nextSteps };
+            })
+          );
+
+          const finishedPromise = new Promise<void>((resolve) => {
+            const unlisten = listen("generation-finished", () => {
+              unlisten.then((dispose) => dispose());
+              resolve();
+            });
+          });
+
+          await invoke("send_interactive_prompt", { prompt: step.prompt });
+          await finishedPromise;
+
+          setMessages((current) =>
+            current.map((msg) => {
+              if (msg.id !== assistantId) return msg;
+              const nextSteps = (msg.superAgentSteps ?? []).map((s) =>
+                s.id === step.id ? { ...s, status: "completed" as const } : s
+              );
+              return { ...msg, superAgentSteps: nextSteps };
+            })
+          );
+        }
+
+        activeSuperAgentStepId.current = null;
+        const targetMsg = messagesRef.current.find((msg) => msg.id === assistantId);
+        if (targetMsg) {
+          const finalSteps = targetMsg.superAgentSteps ?? [];
+          const dbId = await invoke<number>("db_add_message", {
+            conversationId: activeConversationId,
+            role: "assistant",
+            content: targetMsg.content,
+            thinking: null,
+            durationMs: null,
+            diffusionStepsJson: JSON.stringify(finalSteps),
+          });
+
+          setMessages((current) =>
+            current.map((msg) => {
+              if (msg.id !== assistantId) return msg;
+              return {
+                ...msg,
+                id: dbId,
+                pending: false,
+              };
+            })
+          );
+        }
+
+      } catch (err) {
+        console.error("Error in super-agent pipeline:", err);
+        setMessages((current) =>
+          current.map((msg) => {
+            if (msg.role !== "assistant" || !msg.pending) return msg;
+            const nextSteps = (msg.superAgentSteps ?? []).map((s) =>
+              s.status === "running" || s.status === "idle" ? { ...s, status: "failed" as const } : s
+            );
+            return {
+              ...msg,
+              superAgentSteps: nextSteps,
+              pending: false,
+              error: true,
+              content: msg.content + `\n\n[Error en orquestación multiagente: ${err}]`,
+            };
+          })
+        );
+      } finally {
+        activeSuperAgentStepId.current = null;
+        activeInteractiveMessageId.current = null;
+        setRunning(false);
+      }
+      return;
+    }
+
+    // Normal or Agent Mode
     try {
+      let promptToSend = cleanPrompt;
+      if (chatMode === "agent") {
+        const isFirstMessage = messages.filter((m) => m.role === "user").length === 0;
+        if (isFirstMessage) {
+          let systemPrompt = "";
+          if (selectedAgent === "developer") systemPrompt = DEVELOPER_SYSTEM;
+          else if (selectedAgent === "researcher") systemPrompt = RESEARCHER_SYSTEM;
+          else if (selectedAgent === "file-specialist") systemPrompt = FILE_SPECIALIST_SYSTEM;
+          
+          if (customTools.length > 0) {
+            systemPrompt += `\n\nTambién tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n`;
+            customTools.forEach((tool) => {
+              systemPrompt += `- TOOL: ${tool.name} <argumentos> (${tool.description})\n`;
+            });
+            systemPrompt += `\nPara llamar a una herramienta personalizada, escribe: TOOL: <nombre> <argumentos> en una nueva línea y espera la respuesta (OBSERVATION).`;
+          }
+
+          promptToSend = `${systemPrompt}\n\n[Mensaje del usuario]:\n${cleanPrompt}`;
+        }
+      }
+
       const userDbId = await invoke<number>("db_add_message", {
         conversationId: activeConversationId,
         role: "user",
@@ -1429,14 +1942,35 @@ function App() {
       setPrompt("");
       setRunning(true);
 
-      if (modelStatus === "ready") {
+      // Ensure model is loaded if Agent Mode
+      if (chatMode === "agent" && modelStatus !== "ready") {
+        setLogs((current) => [
+          ...current.slice(-199),
+          `[sistema] El modo Agente requiere el modelo en memoria. Iniciando...`,
+        ]);
+        await invoke("start_model", {
+          runnerPath,
+          modelPath,
+          gpuLayers,
+          maxTokens,
+          cfgScale: engineKind === "diffusion" ? (cfgScale || null) : null,
+          tMin: engineKind === "diffusion" ? (tMin || null) : null,
+          tMax: engineKind === "diffusion" ? (tMax || null) : null,
+          entropyBound: engineKind === "diffusion" ? (entropyBound || null) : null,
+          stability: engineKind === "diffusion" ? (stability || null) : null,
+          confidence: engineKind === "diffusion" ? (confidence || null) : null,
+        });
+        setModelStatus("ready");
+      }
+
+      if (modelStatus === "ready" || chatMode === "agent") {
         activeInteractiveMessageId.current = assistantId;
         setLogs((current) => [
           ...current.slice(-199),
           `[sistema] Iniciando generación interactiva instantánea`,
         ]);
         try {
-          await invoke("send_interactive_prompt", { prompt: cleanPrompt });
+          await invoke("send_interactive_prompt", { prompt: promptToSend });
         } catch (error) {
           const errorContent = `No se pudo enviar el prompt al modelo activo. ${String(error)}`;
           let errorDbId = assistantId;
@@ -1776,6 +2310,49 @@ function App() {
       </header>
 
       <aside className="sidebar">
+        {/* Project Workspace Selector */}
+        <div className="project-workspace-selector">
+          <span className="project-selector-label">Proyecto / Espacio</span>
+          <div className="project-select-row">
+            <select
+              className="project-select"
+              value={activeProjectId ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                setActiveProjectId(val ? Number(val) : null);
+              }}
+              disabled={running}
+            >
+              <option value="">🌐 Global (Sin Proyecto)</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  📁 {p.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="add-project-btn"
+              onClick={() => setShowProjectModal(true)}
+              disabled={running}
+              title="Añadir proyecto local (carpeta)"
+            >
+              +
+            </button>
+            {activeProjectId !== null && (
+              <button
+                type="button"
+                className="delete-project-btn"
+                onClick={() => deleteProject(activeProjectId)}
+                disabled={running}
+                title="Eliminar proyecto"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
+        </div>
+
         <button
           className="new-chat"
           onClick={startNewConversation}
@@ -1785,6 +2362,52 @@ function App() {
           <span aria-hidden="true">+</span>
           Nueva conversación
         </button>
+
+        {/* Mode Selector and Agent Selectors */}
+        <div className="mode-selector-container">
+          <span className="mode-selector-label">Modo Operativo</span>
+          <div className="mode-selector-buttons">
+            <button
+              type="button"
+              className={`mode-btn ${chatMode === 'chat' ? 'active' : ''}`}
+              onClick={() => setChatMode('chat')}
+              disabled={running}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              className={`mode-btn ${chatMode === 'agent' ? 'active' : ''}`}
+              onClick={() => setChatMode('agent')}
+              disabled={running}
+            >
+              Agente
+            </button>
+            <button
+              type="button"
+              className={`mode-btn ${chatMode === 'super-agent' ? 'active' : ''}`}
+              onClick={() => setChatMode('super-agent')}
+              disabled={running}
+            >
+              Súper
+            </button>
+          </div>
+
+          {chatMode === 'agent' && (
+            <div className="agent-subselector">
+              <select
+                className="agent-select-input"
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value as any)}
+                disabled={running}
+              >
+                <option value="developer">👨‍💻 Programador (Developer)</option>
+                <option value="researcher">🔍 Investigador (Researcher)</option>
+                <option value="file-specialist">📂 Archivos (File Specialist)</option>
+              </select>
+            </div>
+          )}
+        </div>
         <nav aria-label="Conversaciones">
           <p className="nav-label">
             <span>Recientes</span>
@@ -1931,6 +2554,16 @@ function App() {
                           {message.diffusionSteps && message.diffusionSteps.length > 0 && (
                             <DiffusionCanvas steps={message.diffusionSteps} live />
                           )}
+                          {message.superAgentSteps && message.superAgentSteps.length > 0 && (
+                             <SuperAgentPanel
+                               steps={message.superAgentSteps}
+                               messageId={message.id}
+                               expandedPanels={expandedPanels}
+                               onToggle={(id) =>
+                                 setExpandedPanels((prev) => ({ ...prev, [id]: !prev[id] }))
+                               }
+                             />
+                           )}
                           {message.content && (
                             <div className="streaming-content" style={{ marginTop: "14px" }}>
                               <MarkdownMessage content={message.content} />
@@ -1951,6 +2584,16 @@ function App() {
                               <DiffusionCanvas steps={message.diffusionSteps} />
                             </details>
                           )}
+                          {message.superAgentSteps && message.superAgentSteps.length > 0 && (
+                             <SuperAgentPanel
+                               steps={message.superAgentSteps}
+                               messageId={message.id}
+                               expandedPanels={expandedPanels}
+                               onToggle={(id) =>
+                                 setExpandedPanels((prev) => ({ ...prev, [id]: !prev[id] }))
+                               }
+                             />
+                           )}
                           {message.thinking && (
                             <ThinkingBlock
                               thinking={message.thinking}
@@ -2222,6 +2865,33 @@ function App() {
               </label>
             </div>
           </details>
+
+          {/* Custom Tools Section */}
+          <div className="custom-tools-config-section" style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid var(--border-soft)" }}>
+            <span className="mode-selector-label" style={{ display: "block", marginBottom: "8px" }}>Herramientas de Agente</span>
+            <button
+              type="button"
+              className="manage-tools-btn"
+              onClick={() => setShowToolModal(true)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-soft)",
+                background: "var(--inset)",
+                color: "var(--text-main)",
+                fontSize: "11px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px"
+              }}
+            >
+              🛠️ Crear / Ver Herramientas
+            </button>
+          </div>
             </>
           )}
         </section>
@@ -2352,6 +3022,126 @@ function App() {
           </div>
         </section>
       </aside>
+
+      {/* Modal: Crear Proyecto */}
+      {showProjectModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Crear Nuevo Proyecto</h3>
+              <button className="close-modal-btn" onClick={() => setShowProjectModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleCreateProject} className="modal-form">
+              <label>
+                Nombre del Proyecto
+                <input
+                  type="text"
+                  placeholder="ej. Mi Web App"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Ruta Local de la Carpeta
+                <input
+                  type="text"
+                  placeholder="ej. C:\proyectos\mi-app"
+                  value={newProjectPath}
+                  onChange={(e) => setNewProjectPath(e.target.value)}
+                  required
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowProjectModal(false)}>Cancelar</button>
+                <button type="submit" className="btn-primary">Crear Proyecto</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Gestor de Herramientas Personalizadas */}
+      {showToolModal && (
+        <div className="modal-overlay">
+          <div className="modal-content tool-manager-modal">
+            <div className="modal-header">
+              <h3>Herramientas de Agente</h3>
+              <button className="close-modal-btn" onClick={() => setShowToolModal(false)}>×</button>
+            </div>
+            
+            <div className="modal-section">
+              <h4>Crear Nueva Herramienta</h4>
+              <form onSubmit={handleCreateTool} className="modal-form">
+                <label>
+                  Nombre de la Herramienta (solo letras, números, _ o -)
+                  <input
+                    type="text"
+                    placeholder="ej. obtener_clima"
+                    value={newToolName}
+                    onChange={(e) => setNewToolName(e.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  Descripción
+                  <input
+                    type="text"
+                    placeholder="ej. Devuelve el clima actual para una ciudad."
+                    value={newToolDescription}
+                    onChange={(e) => setNewToolDescription(e.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  Plantilla de Comando Shell (usa {"{{arg}}"} para inyectar argumentos)
+                  <input
+                    type="text"
+                    placeholder="ej. curl -s https://wttr.in/{{arg}}"
+                    value={newToolCommandTemplate}
+                    onChange={(e) => setNewToolCommandTemplate(e.target.value)}
+                    required
+                  />
+                </label>
+                <button type="submit" className="btn-primary" style={{ marginTop: "10px" }}>
+                  Agregar Herramienta
+                </button>
+              </form>
+            </div>
+
+            <div className="modal-section" style={{ marginTop: "20px", borderTop: "1px solid var(--border-soft)", paddingTop: "14px" }}>
+              <h4>Herramientas Existentes</h4>
+              <div className="tool-list">
+                {customTools.length > 0 ? (
+                  customTools.map((tool) => (
+                    <div key={tool.id} className="tool-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px", background: "var(--inset)", border: "1px solid var(--border-soft)", borderRadius: "8px", marginBottom: "8px" }}>
+                      <div>
+                        <strong>TOOL: {tool.name}</strong>
+                        <p style={{ margin: "2px 0 0", fontSize: "10.5px", color: "var(--muted)" }}>{tool.description}</p>
+                        <code style={{ fontSize: "10px", color: "var(--accent)" }}>{tool.command_template}</code>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTool(tool.id)}
+                        style={{ background: "transparent", border: "none", color: "var(--error)", cursor: "pointer", fontSize: "14px" }}
+                        title="Eliminar herramienta"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ fontSize: "11px", color: "var(--muted)" }}>No hay herramientas personalizadas creadas.</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="modal-actions" style={{ marginTop: "14px" }}>
+              <button type="button" onClick={() => setShowToolModal(false)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

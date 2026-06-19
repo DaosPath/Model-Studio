@@ -1306,10 +1306,28 @@ struct DbState {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+struct DbProject {
+    id: i64,
+    name: String,
+    path: String,
+    created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct DbCustomTool {
+    id: i64,
+    name: String,
+    description: String,
+    command_template: String,
+    created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct DbConversation {
     id: i64,
     title: String,
     created_at: String,
+    project_id: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -1324,18 +1342,67 @@ struct DbMessage {
 }
 
 #[tauri::command]
-fn db_get_conversations(state: State<'_, DbState>) -> Result<Vec<DbConversation>, String> {
+fn db_get_conversations(project_id: Option<i64>, state: State<'_, DbState>) -> Result<Vec<DbConversation>, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn
-        .prepare("SELECT id, title, created_at FROM conversations ORDER BY id DESC")
-        .map_err(|e| e.to_string())?;
     
-    let rows = stmt
-        .query_map([], |row| {
+    let mut list = Vec::new();
+    if let Some(pid) = project_id {
+        let mut stmt = conn.prepare("SELECT id, title, created_at, project_id FROM conversations WHERE project_id = ? ORDER BY id DESC")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([pid], |row| {
             Ok(DbConversation {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 created_at: row.get(2)?,
+                project_id: row.get(3)?,
+            })
+        }).map_err(|e| e.to_string())?;
+        for row in rows {
+            list.push(row.map_err(|e| e.to_string())?);
+        }
+    } else {
+        let mut stmt = conn.prepare("SELECT id, title, created_at, project_id FROM conversations WHERE project_id IS NULL ORDER BY id DESC")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([], |row| {
+            Ok(DbConversation {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                created_at: row.get(2)?,
+                project_id: row.get(3)?,
+            })
+        }).map_err(|e| e.to_string())?;
+        for row in rows {
+            list.push(row.map_err(|e| e.to_string())?);
+        }
+    }
+    Ok(list)
+}
+
+#[tauri::command]
+fn db_create_conversation(title: String, project_id: Option<i64>, state: State<'_, DbState>) -> Result<i64, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO conversations (title, project_id) VALUES (?, ?)",
+        rusqlite::params![title, project_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn db_get_projects(state: State<'_, DbState>) -> Result<Vec<DbProject>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, path, created_at FROM projects ORDER BY id DESC")
+        .map_err(|e| e.to_string())?;
+    
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(DbProject {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                path: row.get(2)?,
+                created_at: row.get(3)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -1348,14 +1415,101 @@ fn db_get_conversations(state: State<'_, DbState>) -> Result<Vec<DbConversation>
 }
 
 #[tauri::command]
-fn db_create_conversation(title: String, state: State<'_, DbState>) -> Result<i64, String> {
+fn db_create_project(name: String, path: String, state: State<'_, DbState>) -> Result<i64, String> {
     let conn = state.conn.lock().map_err(|e| e.to_string())?;
     conn.execute(
-        "INSERT INTO conversations (title) VALUES (?)",
-        [&title],
+        "INSERT INTO projects (name, path) VALUES (?, ?)",
+        [&name, &path],
     )
     .map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn db_delete_project(id: i64, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM projects WHERE id = ?", [id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn db_get_custom_tools(state: State<'_, DbState>) -> Result<Vec<DbCustomTool>, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, description, command_template, created_at FROM custom_tools ORDER BY name ASC")
+        .map_err(|e| e.to_string())?;
+    
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(DbCustomTool {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                command_template: row.get(3)?,
+                created_at: row.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut list = Vec::new();
+    for row in rows {
+        list.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(list)
+}
+
+#[tauri::command]
+fn db_create_custom_tool(
+    name: String,
+    description: String,
+    command_template: String,
+    state: State<'_, DbState>,
+) -> Result<i64, String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO custom_tools (name, description, command_template) VALUES (?, ?, ?)",
+        [&name, &description, &command_template],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+fn db_delete_custom_tool(id: i64, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM custom_tools WHERE id = ?", [id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn run_local_command(command: String, cwd: String) -> Result<String, String> {
+    if !std::path::Path::new(&cwd).is_dir() {
+        return Err(format!("El directorio de trabajo no existe o no es válido: {}", cwd));
+    }
+
+    #[cfg(target_os = "windows")]
+    let mut cmd = std::process::Command::new("powershell");
+    #[cfg(target_os = "windows")]
+    cmd.args(&["-Command", &command]);
+
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = std::process::Command::new("sh");
+    #[cfg(not(target_os = "windows"))]
+    cmd.args(&["-c", &command]);
+
+    cmd.current_dir(cwd);
+
+    let output = cmd.output().map_err(|e| format!("Fallo al ejecutar proceso: {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if output.status.success() {
+        Ok(stdout)
+    } else {
+        Err(format!("Error (Código: {:?}):\nStdout: {}\nStderr: {}", output.status.code(), stdout, stderr))
+    }
 }
 
 #[tauri::command]
@@ -1720,6 +1874,23 @@ fn handle_api_request(mut request: tiny_http::Request, app: AppHandle) -> Result
 }
 
 #[tauri::command]
+fn read_local_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_local_directory(path: String) -> Result<Vec<String>, String> {
+    let entries = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
+    let mut names = Vec::new();
+    for entry in entries {
+        if let Ok(entry) = entry {
+            names.push(entry.file_name().to_string_lossy().into_owned());
+        }
+    }
+    Ok(names)
+}
+
+#[tauri::command]
 fn parse_png_metadata(file_path: String) -> Result<ParsedMetadata, String> {
     let bytes = std::fs::read(&file_path)
         .map_err(|e| format!("No se pudo leer el archivo: {e}"))?;
@@ -1743,6 +1914,33 @@ pub fn run() {
             let conn = rusqlite::Connection::open(&db_path)?;
             conn.execute("PRAGMA foreign_keys = ON", [])?;
             
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )",
+                [],
+            )?;
+
+            // ALTER TABLE dynamically to add project_id if it doesn't exist
+            let _ = conn.execute(
+                "ALTER TABLE conversations ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE",
+                [],
+            );
+
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS custom_tools (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    description TEXT NOT NULL,
+                    command_template TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )",
+                [],
+            )?;
+
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS conversations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1826,6 +2024,8 @@ pub fn run() {
             is_image_generating,
             get_default_image_paths,
             parse_png_metadata,
+            read_local_file,
+            list_local_directory,
             db_get_conversations,
             db_create_conversation,
             db_get_messages,
@@ -1833,7 +2033,14 @@ pub fn run() {
             db_delete_conversation,
             db_update_conversation_title,
             db_get_images,
-            db_add_image
+            db_add_image,
+            db_get_projects,
+            db_create_project,
+            db_delete_project,
+            db_get_custom_tools,
+            db_create_custom_tool,
+            db_delete_custom_tool,
+            run_local_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
