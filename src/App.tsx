@@ -533,8 +533,44 @@ const translations: Record<string, Record<string, string>> = {
     diffusionProcess: "Proceso de difusión · {steps} pasos",
     customToolsHeader: "También tienes acceso a las siguientes herramientas personalizadas creadas por el usuario:\n",
     customToolsInstruction: "\nPara llamar a una herramienta personalizada, escribe: TOOL: <nombre> <argumentos> en una nueva línea y espera la respuesta (OBSERVATION).",
-    customToolsArgs: "<argumentos>",
-    userMessageTag: "[Mensaje del usuario]:"
+    userMessageTag: "[Mensaje del usuario]:",
+    welcomeTitle: "Listo para razonar en paralelo",
+    welcomeSub: "DiffusionGemma 26B A4B ejecuta todo en tu GPU mediante difusión discreta. Sin nube, sin telemetría, sin esperas.",
+    suggest1: "Explica la fotosíntesis en términos simples",
+    suggest2: "Escribe un poema corto sobre la noche",
+    suggest3: "Dame tres ideas para un proyecto local",
+    suggest4: "Resume las ventajas de la inferencia local",
+    confirmUnsavedChanges: "Tienes cambios sin guardar. ¿Seguro que deseas cerrar?",
+    confirmDeleteProject: "¿Seguro de que deseas eliminar este proyecto? Los chats vinculados también se perderán.",
+    confirmDeleteTool: "¿Seguro que deseas eliminar esta herramienta?",
+    confirmDeleteConv: "¿Estás seguro de que deseas eliminar esta conversación y todos sus mensajes?",
+    alertNoFileOpen: "⚠️ No hay ningún archivo abierto en el editor. Por favor, abre un archivo desde el explorador de la barra lateral para poder aplicar el código.",
+    alertReadError: "Error al leer el archivo: ",
+    alertSaveError: "Error al guardar el archivo: ",
+    alertCreateProjectError: "Error al crear proyecto: ",
+    alertDeleteProjectError: "Error al eliminar proyecto: ",
+    alertCreateToolError: "Error al crear herramienta: ",
+    alertDeleteToolError: "Error al eliminar herramienta: ",
+    sysAppStarted: "[sistema] Aplicación iniciada",
+    sysWaitingRunner: "[sistema] Esperando verificación del runner",
+    sysAgentDirChanged: "[sistema] Directorio de trabajo del agente cambiado a: {path}",
+    sysModelStoppedConv: "[sistema] Modelo detenido para cambiar de conversación.",
+    sysTokenSaverStart: "[sistema] Optimización de contexto iniciada (Token Saver). Consumo estimado: {tokens} tokens.",
+    sysStoppingModelGpu: "[sistema] Deteniendo modelo temporalmente para liberar memoria GPU...",
+    sysGeneratingSummary: "[sistema] Generando resumen de mensajes intermedios...",
+    sysSummarySuccess: "[sistema] Resumen generado con éxito. Actualizando base de datos...",
+    sysOptimizationSuccess: "[sistema] Contexto optimizado con éxito. El modelo se reiniciará con el contexto comprimido en tu próximo mensaje.",
+    sysParamsLoadedImg: "[sistema] Parámetros cargados desde la imagen: {img}",
+    sysLoadingModelVram: "[sistema] Cargando modelo en VRAM de forma persistente...",
+    sysSuperAgentStart: "[sistema] El modo Súper Agente requiere el modelo en memoria. Iniciando...",
+    sysAgentStart: "[sistema] El modo Agente requiere el modelo en memoria. Iniciando...",
+    sysStartingGenInstant: "[sistema] Iniciando generación interactiva instantánea",
+    sysStartingGenGpu: "[sistema] Iniciando generación con {gpu} capas GPU",
+    sysGenStopped: "[sistema] Generación detenida",
+    sysGeneratingImage: "[sistema] Generando imagen {w}x{h} · {steps} pasos",
+    sysImageGenerated: "[sistema] Imagen generada en {s}s",
+    sysImageGenStopped: "[sistema] Generación de imagen detenida",
+    sysDirResetRoot: "[sistema] Directorio de trabajo restablecido a la raíz del proyecto"
   },
   en: {
     settingsTitle: "General Settings",
@@ -649,8 +685,44 @@ const translations: Record<string, Record<string, string>> = {
     diffusionProcess: "Diffusion process · {steps} steps",
     customToolsHeader: "You also have access to the following custom tools created by the user:\n",
     customToolsInstruction: "\nTo call a custom tool, write: TOOL: <name> <arguments> on a new line and wait for the response (OBSERVATION).",
-    customToolsArgs: "<arguments>",
-    userMessageTag: "[User Message]:"
+    userMessageTag: "[User Message]:",
+    welcomeTitle: "Ready for parallel reasoning",
+    welcomeSub: "DiffusionGemma 26B A4B runs everything locally on your GPU via discrete diffusion. No cloud, no telemetry, no waiting.",
+    suggest1: "Explain photosynthesis in simple terms",
+    suggest2: "Write a short poem about the night",
+    suggest3: "Give me three ideas for a local project",
+    suggest4: "Summarize the advantages of local inference",
+    confirmUnsavedChanges: "You have unsaved changes. Are you sure you want to close?",
+    confirmDeleteProject: "Are you sure you want to delete this project? Linked chats will also be lost.",
+    confirmDeleteTool: "Are you sure you want to delete this tool?",
+    confirmDeleteConv: "Are you sure you want to delete this conversation and all its messages?",
+    alertNoFileOpen: "⚠️ No file is open in the editor. Please open a file from the sidebar explorer to apply the code.",
+    alertReadError: "Error reading file: ",
+    alertSaveError: "Error saving file: ",
+    alertCreateProjectError: "Error creating project: ",
+    alertDeleteProjectError: "Error deleting project: ",
+    alertCreateToolError: "Error creating tool: ",
+    alertDeleteToolError: "Error deleting tool: ",
+    sysAppStarted: "[system] Application started",
+    sysWaitingRunner: "[system] Waiting for runner verification",
+    sysAgentDirChanged: "[system] Agent working directory changed to: {path}",
+    sysModelStoppedConv: "[system] Model stopped to switch conversation.",
+    sysTokenSaverStart: "[system] Context optimization started (Token Saver). Estimated consumption: {tokens} tokens.",
+    sysStoppingModelGpu: "[system] Temporarily stopping model to free GPU memory...",
+    sysGeneratingSummary: "[system] Generating summary of intermediate messages...",
+    sysSummarySuccess: "[system] Summary generated successfully. Updating database...",
+    sysOptimizationSuccess: "[system] Context optimized successfully. The model will restart with compressed context on your next message.",
+    sysParamsLoadedImg: "[system] Parameters loaded from image: {img}",
+    sysLoadingModelVram: "[system] Loading model in VRAM persistently...",
+    sysSuperAgentStart: "[system] Super Agent mode requires model in memory. Starting...",
+    sysAgentStart: "[system] Agent mode requires model in memory. Starting...",
+    sysStartingGenInstant: "[system] Starting instant interactive generation",
+    sysStartingGenGpu: "[system] Starting generation with {gpu} GPU layers",
+    sysGenStopped: "[system] Generation stopped",
+    sysGeneratingImage: "[system] Generating image {w}x{h} · {steps} steps",
+    sysImageGenerated: "[system] Image generated in {s}s",
+    sysImageGenStopped: "[system] Image generation stopped",
+    sysDirResetRoot: "[system] Working directory reset to project root"
   },
   zh: {
     settingsTitle: "常规设置",
@@ -764,8 +836,44 @@ const translations: Record<string, Record<string, string>> = {
     diffusionProcess: "扩散过程 · {steps} 步",
     customToolsHeader: "您还可以访问以下用户创建的自定义工具：\n",
     customToolsInstruction: "\n要调用自定义工具，请在新行中编写：TOOL: <名称> <参数> 并等待响应 (OBSERVATION)。",
-    customToolsArgs: "<参数>",
-    userMessageTag: "[用户消息]:"
+    userMessageTag: "[用户消息]:",
+    welcomeTitle: "准备好并行推理",
+    welcomeSub: "DiffusionGemma 26B A4B 通过离散扩散在您的 GPU 上本地运行所有内容。无云端，无遥测，无等待。",
+    suggest1: "用简单的语言解释光合作用",
+    suggest2: "写一首关于夜晚的短诗",
+    suggest3: "给我三个本地项目的点子",
+    suggest4: "总结本地推理的优势",
+    confirmUnsavedChanges: "您有未保存的修改。确定要关闭吗？",
+    confirmDeleteProject: "您确定要删除此项目吗？关联的聊天记录也将丢失。",
+    confirmDeleteTool: "确定要删除此工具吗？",
+    confirmDeleteConv: "确定要删除此对话及其所有消息吗？",
+    alertNoFileOpen: "⚠️ 编辑器中未打开任何文件。请从侧边栏资源管理器中打开一个文件以应用代码。",
+    alertReadError: "读取文件错误: ",
+    alertSaveError: "保存文件错误: ",
+    alertCreateProjectError: "创建项目错误: ",
+    alertDeleteProjectError: "删除项目错误: ",
+    alertCreateToolError: "创建工具错误: ",
+    alertDeleteToolError: "删除工具错误: ",
+    sysAppStarted: "[system] 应用已启动",
+    sysWaitingRunner: "[system] 等待运行器验证",
+    sysAgentDirChanged: "[system] 智能体工作目录已更改为: {path}",
+    sysModelStoppedConv: "[system] 模型已停止以切换对话。",
+    sysTokenSaverStart: "[system] 上下文优化已启动 (Token Saver)。估计消耗: {tokens} 个 token。",
+    sysStoppingModelGpu: "[system] 正在临时停止模型以释放 GPU 显存...",
+    sysGeneratingSummary: "[system] 正在生成中间消息的摘要...",
+    sysSummarySuccess: "[system] 摘要生成成功。正在更新数据库...",
+    sysOptimizationSuccess: "[system] 上下文优化成功。模型将在您发送下一条消息时使用压缩上下文重启。",
+    sysParamsLoadedImg: "[system] 从图像加载的参数: {img}",
+    sysLoadingModelVram: "[system] 正在将模型持久加载到 VRAM 中...",
+    sysSuperAgentStart: "[system] 超级智能体模式需要模型在内存中。正在启动...",
+    sysAgentStart: "[system] 智能体模式需要模型在内存中。正在启动...",
+    sysStartingGenInstant: "[system] 正在启动即时交互式生成",
+    sysStartingGenGpu: "[system] 正在启动 {gpu} 层 GPU 层的生成",
+    sysGenStopped: "[system] 生成已停止",
+    sysGeneratingImage: "[system] 正在生成图像 {w}x{h} · {steps} 步",
+    sysImageGenerated: "[system] 图像生成耗时 {s} 秒",
+    sysImageGenStopped: "[system] 图像生成已停止",
+    sysDirResetRoot: "[system] 工作目录已重置为项目根目录"
   }
 };
 
@@ -1378,23 +1486,26 @@ function ThinkingBlock({
   );
 }
 
-function WelcomeState({ onSuggestion }: { onSuggestion: (text: string) => void }) {
+function WelcomeState({
+  language,
+  onSuggestion
+}: {
+  language: string;
+  onSuggestion: (text: string) => void;
+}) {
   const suggestions = [
-    "Explica la fotosíntesis en términos simples",
-    "Escribe un poema corto sobre la noche",
-    "Dame tres ideas para un proyecto local",
-    "Resume las ventajas de la inferencia local",
+    translations[language].suggest1,
+    translations[language].suggest2,
+    translations[language].suggest3,
+    translations[language].suggest4,
   ];
   return (
     <div className="welcome">
       <div className="welcome-orb" aria-hidden="true">
         <SparkleIcon />
       </div>
-      <h2>Listo para razonar en paralelo</h2>
-      <p>
-        DiffusionGemma 26B A4B ejecuta todo en tu GPU mediante difusión discreta. Sin
-        nube, sin telemetría, sin esperas.
-      </p>
+      <h2>{translations[language].welcomeTitle}</h2>
+      <p>{translations[language].welcomeSub}</p>
       <div className="welcome-suggestions">
         {suggestions.map((suggestion) => (
           <button
@@ -1619,9 +1730,10 @@ interface FileNode {
 interface FileExplorerProps {
   rootPath: string | null;
   onSelectFolder: (path: string) => void;
+  language: "es" | "en" | "zh";
 }
 
-function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
+function FileExplorer({ rootPath, onSelectFolder, language }: FileExplorerProps) {
   const [nodes, setNodes] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1642,7 +1754,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
       setNodes(tree);
     } catch (e) {
       console.error(e);
-      setError("No se pudo cargar el explorador de archivos.");
+      setError(language === "es" ? "No se pudo cargar el explorador de archivos." : language === "en" ? "Could not load file explorer." : "无法加载文件资源管理器。");
     } finally {
       setLoading(false);
     }
@@ -1657,7 +1769,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
       const customEvent = event as CustomEvent<{ code: string }>;
       const code = customEvent.detail.code;
       if (!viewingFile) {
-        alert("⚠️ No hay ningún archivo abierto en el editor. Por favor, abre un archivo desde el explorador de la barra lateral para poder aplicar el código.");
+        alert(translations[language].alertNoFileOpen);
         return;
       }
       setEditedContent(code);
@@ -1668,7 +1780,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
     return () => {
       window.removeEventListener("apply-to-editor", handleApply);
     };
-  }, [viewingFile]);
+  }, [viewingFile, language]);
 
   const toggleFolder = (path: string) => {
     setExpandedFolders(prev => ({ ...prev, [path]: !prev[path] }));
@@ -1682,7 +1794,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
       setIsEditing(false);
       setSaveStatus("idle");
     } catch (e) {
-      alert("Error al leer el archivo: " + e);
+      alert(translations[language].alertReadError + e);
     }
   };
 
@@ -1697,13 +1809,13 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
     } catch (e) {
       console.error(e);
       setSaveStatus("error");
-      alert("Error al guardar el archivo: " + e);
+      alert(translations[language].alertSaveError + e);
     }
   };
 
   const handleCloseModal = () => {
     if (viewingFile && editedContent !== viewingFile.content) {
-      if (!window.confirm("Tienes cambios sin guardar. ¿Seguro que deseas cerrar?")) {
+      if (!window.confirm(translations[language].confirmUnsavedChanges)) {
         return;
       }
     }
@@ -1738,7 +1850,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
             <span 
               className="node-name"
               onClick={() => toggleFolder(node.path)}
-              title="Click para expandir"
+              title={language === "es" ? "Click para expandir" : language === "en" ? "Click to expand" : "点击展开"}
             >
               {node.name}
             </span>
@@ -1746,7 +1858,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
               type="button"
               className="folder-cd-btn"
               onClick={() => onSelectFolder(node.path)}
-              title="Establecer como directorio de trabajo (cd)"
+              title={language === "es" ? "Establecer como directorio de trabajo (cd)" : language === "en" ? "Set as agent working directory (cd)" : "设置为智能体工作目录 (cd)"}
             >
               cd
             </button>
@@ -1765,7 +1877,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
           className="file-node file" 
           style={{ paddingLeft: `${indent + 24}px` }}
           onClick={() => openFile(node.path, node.name)}
-          title="Click para ver contenido"
+          title={language === "es" ? "Click para ver contenido" : language === "en" ? "Click to view content" : "点击查看内容"}
         >
           <span className="node-icon">📄</span>
           <span className="node-name">{node.name}</span>
@@ -1777,7 +1889,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
   if (!rootPath) {
     return (
       <div className="file-explorer-empty">
-        <p>Selecciona un proyecto activo para explorar sus archivos.</p>
+        <p>{language === "es" ? "Selecciona un proyecto activo para explorar sus archivos." : language === "en" ? "Select an active project to explore its files." : "选择一个活动项目以浏览其文件。"}</p>
       </div>
     );
   }
@@ -1785,7 +1897,7 @@ function FileExplorer({ rootPath, onSelectFolder }: FileExplorerProps) {
   return (
     <div className="file-explorer">
       <div className="file-explorer-header">
-        <h3>Explorador de Archivos</h3>
+        <h3>{language === "es" ? "Explorador de Archivos" : language === "en" ? "File Explorer" : "文件资源管理器"}</h3>
         <button 
           type="button" 
           onClick={fetchTree} 
@@ -1928,6 +2040,12 @@ function parseModelResponseJS(raw: string) {
 }
 
 function App() {
+  const [language, setLanguage] = useState<"es" | "en" | "zh">(() => (localStorage.getItem("app-language") as any) || "es");
+
+  useEffect(() => {
+    localStorage.setItem("app-language", language);
+  }, [language]);
+
   const [engineKind, setEngineKind] = useState<EngineKind>("diffusion");
   const [messages, setMessages] = useState<Message[]>(() => {
     const lang = (localStorage.getItem("app-language") as any) || "es";
@@ -2002,22 +2120,22 @@ function App() {
   const [customResearcherPrompt, setCustomResearcherPrompt] = useState("");
   const [customFileSpecialistPrompt, setCustomFileSpecialistPrompt] = useState("");
 
+
+
   // Pantalla de configuraciones
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [language, setLanguage] = useState<"es" | "en" | "zh">(() => (localStorage.getItem("app-language") as any) || "es");
-
-  useEffect(() => {
-    localStorage.setItem("app-language", language);
-  }, [language]);
 
   // Editor de prompts en barra lateral
   const [promptEditorAgent, setPromptEditorAgent] = useState<"developer" | "researcher" | "file-specialist">("developer");
   const [tempPromptVal, setTempPromptVal] = useState("");
   const [promptSaveStatus, setPromptSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [logs, setLogs] = useState<string[]>([
-    "[sistema] Aplicación iniciada",
-    "[sistema] Esperando verificación del runner",
-  ]);
+  const [logs, setLogs] = useState<string[]>(() => {
+    const lang = (localStorage.getItem("app-language") as any) || "es";
+    return [
+      translations[lang]?.sysAppStarted || "[system] Application started",
+      translations[lang]?.sysWaitingRunner || "[system] Waiting for runner verification",
+    ];
+  });
   const [status, setStatus] = useState<SystemStatus>({
     gpu_name: "Detectando…",
     gpu_vendor: "",
@@ -2086,7 +2204,7 @@ function App() {
       setConversations(current =>
         current.map(c => c.id === activeConversationId ? { ...c, current_directory: path } : c)
       );
-      setLogs(current => [...current, `[sistema] Directorio de trabajo del agente cambiado a: ${path}`]);
+      setLogs(current => [...current, translations[language].sysAgentDirChanged.replace("{path}", path)]);
     } catch (e) {
       console.error("Error al actualizar el directorio de trabajo:", e);
     }
@@ -2104,12 +2222,12 @@ function App() {
       setShowProjectModal(false);
       await loadProjects();
     } catch (err) {
-      alert(`Error al crear proyecto: ${err}`);
+      alert(translations[language].alertCreateProjectError + err);
     }
   }
 
   async function deleteProject(id: number) {
-    if (!window.confirm("¿Seguro de que deseas eliminar este proyecto? Los chats vinculados también se perderán.")) return;
+    if (!window.confirm(translations[language].confirmDeleteProject)) return;
     try {
       await invoke("db_delete_project", { id });
       if (activeProjectId === id) {
@@ -2117,7 +2235,7 @@ function App() {
       }
       await loadProjects();
     } catch (err) {
-      alert(`Error al eliminar proyecto: ${err}`);
+      alert(translations[language].alertDeleteProjectError + err);
     }
   }
 
@@ -2134,17 +2252,17 @@ function App() {
       setNewToolCommandTemplate("");
       await loadCustomTools();
     } catch (err) {
-      alert(`Error al crear herramienta: ${err}`);
+      alert(translations[language].alertCreateToolError + err);
     }
   }
 
   async function handleDeleteTool(id: number) {
-    if (!window.confirm("¿Seguro que deseas eliminar esta herramienta?")) return;
+    if (!window.confirm(translations[language].confirmDeleteTool)) return;
     try {
       await invoke("db_delete_custom_tool", { id });
       await loadCustomTools();
     } catch (err) {
-      alert(`Error al eliminar herramienta: ${err}`);
+      alert(translations[language].alertDeleteToolError + err);
     }
   }
 
@@ -2275,7 +2393,7 @@ function App() {
       try {
         await invoke("stop_model");
         setModelStatus("stopped");
-        setLogs((current) => [...current, `[sistema] Modelo detenido para cambiar de conversación.`]);
+        setLogs((current) => [...current, translations[language].sysModelStoppedConv]);
       } catch (e) {
         console.error("Error stopping model on conversation change:", e);
       }
@@ -2380,7 +2498,7 @@ function App() {
   async function deleteConversation(id: number, event: React.MouseEvent) {
     event.stopPropagation();
     if (running) return;
-    if (!window.confirm("¿Estás seguro de que deseas eliminar esta conversación y todos sus mensajes?")) {
+    if (!window.confirm(translations[language].confirmDeleteConv)) {
       return;
     }
     try {
@@ -2599,7 +2717,7 @@ function App() {
 
     setLogs((current) => [
       ...current,
-      `[sistema] Optimización de contexto iniciada (Token Saver). Consumo estimado: ${totalEstimated} tokens.`,
+      translations[language].sysTokenSaverStart.replace("{tokens}", String(totalEstimated)),
     ]);
 
     try {
@@ -2616,10 +2734,10 @@ function App() {
       if (modelStatus === "ready") {
         await invoke("stop_model");
         setModelStatus("stopped");
-        setLogs((current) => [...current, `[sistema] Deteniendo modelo temporalmente para liberar memoria GPU...`]);
+        setLogs((current) => [...current, translations[language].sysStoppingModelGpu]);
       }
 
-      setLogs((current) => [...current, `[sistema] Generando resumen de mensajes intermedios...`]);
+      setLogs((current) => [...current, translations[language].sysGeneratingSummary]);
 
       const summaryPrompt = `Resume la siguiente conversación de programación de forma concisa en un solo párrafo, detallando qué se logró, qué decisiones se tomaron y cuál es el estado actual. Sé breve y estructurado:\n\n${textToSummarize}\n\nResumen:`;
 
@@ -2650,7 +2768,7 @@ function App() {
         throw new Error("Resumen vacío generado por el modelo.");
       }
 
-      setLogs((current) => [...current, `[sistema] Resumen generado con éxito. Actualizando base de datos...`]);
+      setLogs((current) => [...current, translations[language].sysSummarySuccess]);
 
       // Eliminar los mensajes intermedios de la base de datos
       const idsToDelete = middleMessages.map(m => m.id);
@@ -2697,7 +2815,7 @@ function App() {
       });
 
       setMessages(mappedMsgs);
-      setLogs((current) => [...current, `[sistema] Contexto optimizado con éxito. El modelo se reiniciará con el contexto comprimido en tu próximo mensaje.`]);
+      setLogs((current) => [...current, translations[language].sysOptimizationSuccess]);
 
     } catch (e) {
       console.error("Error en Token Saver:", e);
@@ -3032,7 +3150,7 @@ function App() {
         if (path.toLowerCase().endsWith(".png")) {
           invoke<any>("parse_png_metadata", { filePath: path })
             .then((meta) => {
-              setLogs((curr) => [...curr, `[sistema] Parámetros cargados desde la imagen: ${path.split('\\').pop()}`]);
+              setLogs((curr) => [...curr, translations[language].sysParamsLoadedImg.replace("{img}", path.split('\\').pop() || "")]);
               if (meta.prompt) setImagePrompt(meta.prompt);
               if (meta.negative_prompt) setNegativePrompt(meta.negative_prompt);
               if (meta.steps) setImageSteps(meta.steps);
@@ -3093,7 +3211,7 @@ function App() {
         return;
       }
       setModelStatus("loading");
-      setLogs((current) => [...current, `[sistema] Cargando modelo en VRAM de forma persistente...`]);
+      setLogs((current) => [...current, translations[language].sysLoadingModelVram]);
       try {
         await invoke("start_model", {
           runnerPath,
@@ -3170,7 +3288,7 @@ function App() {
         if (modelStatus !== "ready") {
           setLogs((current) => [
             ...current.slice(-199),
-            `[sistema] El modo Súper Agente requiere el modelo en memoria. Iniciando...`,
+            translations[language].sysSuperAgentStart,
           ]);
           await invoke("start_model", {
             runnerPath,
@@ -3380,7 +3498,7 @@ function App() {
       if (chatMode === "agent" && modelStatus !== "ready") {
         setLogs((current) => [
           ...current.slice(-199),
-          `[sistema] El modo Agente requiere el modelo en memoria. Iniciando...`,
+          translations[language].sysAgentStart,
         ]);
         await invoke("start_model", {
           runnerPath,
@@ -3405,7 +3523,7 @@ function App() {
         activeInteractiveMessageId.current = assistantId;
         setLogs((current) => [
           ...current.slice(-199),
-          `[sistema] Iniciando generación interactiva instantánea`,
+          translations[language].sysStartingGenInstant,
         ]);
         try {
           await invoke("send_interactive_prompt", { prompt: promptToSend });
@@ -3445,7 +3563,7 @@ function App() {
         activeAssistantId.current = assistantId;
         setLogs((current) => [
           ...current.slice(-199),
-          `[sistema] Iniciando generación con ${gpuLayers} capas GPU`,
+          translations[language].sysStartingGenGpu.replace("{gpu}", String(gpuLayers)),
         ]);
 
         try {
@@ -3574,7 +3692,7 @@ function App() {
       }
       setLogs((current) => [
         ...current.slice(-199),
-        "[sistema] Generación detenida",
+        translations[language].sysGenStopped,
       ]);
     } finally {
       activeInteractiveMessageId.current = null;
@@ -3605,7 +3723,7 @@ function App() {
 
     setLogs((current) => [
       ...current.slice(-199),
-      `[sistema] Generando imagen ${imageWidth}x${imageHeight} · ${imageSteps} pasos`,
+      translations[language].sysGeneratingImage.replace("{w}", String(imageWidth)).replace("{h}", String(imageHeight)).replace("{steps}", String(imageSteps)),
     ]);
 
     try {
@@ -3663,7 +3781,7 @@ function App() {
       setSelectedImageId(newImage.id);
       setLogs((current) => [
         ...current.slice(-199),
-        `[sistema] Imagen generada en ${(result.duration_ms / 1000).toFixed(1)}s`,
+        translations[language].sysImageGenerated.replace("{s}", (result.duration_ms / 1000).toFixed(1)),
       ]);
     } catch (error) {
       setLogs((current) => [
@@ -3681,7 +3799,7 @@ function App() {
       await invoke("stop_image_generation");
       setLogs((current) => [
         ...current.slice(-199),
-        "[sistema] Generación de imagen detenida",
+        translations[language].sysImageGenStopped,
       ]);
     } finally {
       setImageGenerating(false);
@@ -3977,7 +4095,7 @@ function App() {
         </div>
 
         <div style={{ display: activeTab === "files" ? "flex" : "none", flex: 1, minHeight: 0, flexDirection: "column" }}>
-          <FileExplorer rootPath={currentWorkDir} onSelectFolder={updateWorkDir} />
+          <FileExplorer rootPath={currentWorkDir} onSelectFolder={updateWorkDir} language={language} />
         </div>
 
         {activeTab === "prompts" && (
@@ -4095,7 +4213,9 @@ function App() {
           <div className="current-path-indicator">
             <div className="current-path-left" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span className="current-path-icon">📂</span>
-              <span className="current-path-label">Directorio actual:</span>
+              <span className="current-path-label">
+                {language === "es" ? "Directorio actual:" : language === "en" ? "Current directory:" : "当前目录:"}
+              </span>
               <code className="current-path-code">{currentWorkDir}</code>
               {activeConversation?.current_directory && (
                 <button
@@ -4108,18 +4228,18 @@ function App() {
                       setConversations(current =>
                         current.map(c => c.id === activeConversationId ? { ...c, current_directory: null } : c)
                       );
-                      setLogs(current => [...current, "[sistema] Directorio de trabajo restablecido a la raíz del proyecto"]);
+                      setLogs(current => [...current, translations[language].sysDirResetRoot]);
                     } catch (e) {
                       console.error("Error resetting path:", e);
                     }
                   }}
-                  title="Restablecer a la raíz del proyecto"
+                  title={language === "es" ? "Restablecer a la raíz del proyecto" : language === "en" ? "Reset to project root" : "重置为项目根目录"}
                 >
-                  Restablecer
+                  {language === "es" ? "Restablecer" : language === "en" ? "Reset" : "重置"}
                 </button>
               )}
             </div>
-            <div className="token-saver-indicator" title="Consumo estimado de tokens del contexto de esta conversación">
+            <div className="token-saver-indicator" title={language === "es" ? "Consumo estimado de tokens del contexto de esta conversación" : language === "en" ? "Estimated token consumption of this conversation's context" : "当前对话上下文的估计 Token 消耗"}>
               <span className="token-saver-icon">⚡</span>
               <span className="token-saver-text">
                 {conversationTokens.toLocaleString()} / 3,000 tokens
@@ -4160,6 +4280,7 @@ function App() {
 
             {messages.length <= 1 && !running && (
               <WelcomeState
+                language={language}
                 onSuggestion={(text) => {
                   setPrompt(text);
                   window.setTimeout(() => textareaRef.current?.focus(), 0);
